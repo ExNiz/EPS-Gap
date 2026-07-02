@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Exaze — Gap Analysis Dashboard</title>
+<style>
+/* ── TOKENS (exact match to AssociatePulse_Dashboard.html) ─────────────── */
+:root{
+  --bg:#0d0f14;--surface:#151820;--card:#1c2030;--border:#252a3a;
+  --accent:#4f7cff;--accent3:#34d399;--accent4:#fbbf24;--accent5:#a78bfa;
+  --text:#e8eaf0;--muted:#b0bac8;--pos:#34d399;--neg:#ff6b6b;
+  --tl-green:#34d399;--tl-orange:#fbbf24;--tl-red:#ff6b6b;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,-apple-system,Arial,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;}
+
+/* ── DASHBOARD SHELL ─────────────────────────────────────────────────────── */
+#dashboard{display:flex;height:100vh;flex-direction:column;}
+.app-header{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:54px;background:#0a0c10;border-bottom:2px solid var(--accent);flex-shrink:0;}
+.app-logo{display:flex;align-items:center;gap:10px;}
+.app-brand{font-size:18px;font-weight:800;color:#fff;}
+.app-brand span{color:#4f7cff;}
+.header-right{display:flex;align-items:center;gap:8px;}
+.hbadge{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;}
+.hbadge strong{font-size:14px;font-weight:800;}
+.hbadge.green strong{color:var(--tl-green);}
+.hbadge.orange strong{color:var(--tl-orange);}
+.hbadge.red strong{color:var(--tl-red);}
+
+/* ── TABS ────────────────────────────────────────────────────────────────── */
+.tab-bar{display:flex;background:var(--bg);border-bottom:1px solid var(--border);padding:0 20px;flex-shrink:0;gap:2px;}
+.tab-btn{all:unset;box-sizing:border-box;display:inline-block;border-bottom:3px solid transparent;padding:13px 22px;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;white-space:nowrap;margin-bottom:-1px;line-height:1;transition:color .18s,background .18s,border-color .18s;}
+.tab-btn:hover{color:#e8eaf0;background:rgba(255,255,255,.04);}
+.tab-btn.active{color:#fff;border-bottom:3px solid #4f7cff;font-weight:600;background:rgba(79,124,255,.08);}
+
+/* ── PAGE LAYOUT ─────────────────────────────────────────────────────────── */
+.page-wrap{flex:1;overflow-y:auto;padding:20px;}
+.page{display:none;}
+.page.active{display:block;}
+.page-header{margin-bottom:18px;}
+.page-title{font-size:22px;font-weight:800;}
+.page-sub{font-size:12px;color:var(--muted);margin-top:3px;}
+.section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:18px 0 8px;}
+
+/* ── CARDS ───────────────────────────────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;}
+.card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px;}
+
+/* ── KPI TILES ───────────────────────────────────────────────────────────── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden;}
+.kpi-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--border);}
+.kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;}
+.kpi-score{font-size:34px;font-weight:800;line-height:1;margin-bottom:2px;}
+.kpi-band{font-size:11px;font-weight:600;margin-top:3px;}
+.kpi-bar-track{height:4px;background:var(--border);border-radius:2px;margin-top:10px;}
+.kpi-bar-fill{height:100%;border-radius:2px;}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:5px;}
+
+/* ── STAT TILES ──────────────────────────────────────────────────────────── */
+.stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:12px;}
+.stat-tile{border-radius:14px;padding:20px 22px;position:relative;overflow:hidden;border:1px solid var(--border);}
+.stat-tile-label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px;font-weight:600;}
+.stat-tile-val{font-size:52px;font-weight:800;line-height:1;}
+.stat-tile-sub{font-size:11px;color:var(--muted);margin-top:8px;}
+
+/* ── TRAFFIC LIGHT TABLE ─────────────────────────────────────────────────── */
+.tl-table{width:100%;border-collapse:collapse;font-size:12px;}
+.tl-table th{background:var(--surface);color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);}
+.tl-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.tl-table tr:last-child td{border-bottom:none;}
+.tl-table tr:hover td{background:rgba(255,255,255,.02);}
+.tl-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;flex-shrink:0;}
+
+/* ── PILLS / BADGES ──────────────────────────────────────────────────────── */
+.pill{display:inline-block;padding:3px 9px;border-radius:5px;font-size:11px;font-weight:600;}
+.pill-green{background:rgba(52,211,153,.15);color:var(--tl-green);border:1px solid rgba(52,211,153,.3);}
+.pill-orange{background:rgba(251,191,36,.15);color:var(--tl-orange);border:1px solid rgba(251,191,36,.3);}
+.pill-red{background:rgba(255,107,107,.15);color:var(--tl-red);border:1px solid rgba(255,107,107,.3);}
+.risk-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:rgba(165,139,250,.15);color:var(--accent5);border:1px solid rgba(165,139,250,.25);}
+.band-now{background:rgba(255,107,107,.15);color:var(--neg);border:1px solid rgba(255,107,107,.3);}
+.band-next{background:rgba(251,191,36,.15);color:var(--accent4);border:1px solid rgba(251,191,36,.3);}
+.band-later{background:rgba(52,211,153,.15);color:var(--pos);border:1px solid rgba(52,211,153,.3);}
+
+/* ── SENTIMENT BAR ───────────────────────────────────────────────────────── */
+.sentiment-bar{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:6px 0;}
+.sent-pos{background:var(--pos);}
+.sent-neu{background:var(--accent4);}
+.sent-neg{background:var(--neg);}
+.sent-legend{display:flex;gap:14px;font-size:10px;color:var(--muted);}
+.sent-leg-item{display:flex;align-items:center;gap:5px;}
+.sent-leg-dot{width:8px;height:8px;border-radius:50%;}
+
+/* ── PILLAR DEEP-DIVE CARD ───────────────────────────────────────────────── */
+.pillar-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px;}
+.pillar-card-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:12px;}
+.pillar-name{font-size:15px;font-weight:700;}
+.pillar-risk{font-size:10px;color:var(--muted);margin-top:3px;}
+.score-compare{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;margin-bottom:12px;}
+.score-box{background:var(--surface);border-radius:8px;padding:12px;}
+.score-box-label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;}
+.score-box-val{font-size:28px;font-weight:800;line-height:1;}
+.score-box-band{font-size:10px;font-weight:600;margin-top:3px;}
+.score-box-track{height:4px;background:var(--border);border-radius:2px;margin-top:8px;}
+.score-box-fill{height:100%;border-radius:2px;}
+.gap-box{background:var(--surface);border-radius:8px;padding:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:100px;gap:4px;border:1px solid var(--border);}
+.gap-box-label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);}
+.gap-box-val{font-size:26px;font-weight:800;}
+.gap-box-tl{font-size:10px;font-weight:600;}
+.narrative-bar{background:var(--surface);border-left:3px solid var(--accent);border-radius:0 6px 6px 0;padding:10px 14px;font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;}
+.narr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+.narr-panel{background:var(--surface);border-radius:8px;padding:12px;}
+.narr-panel-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}
+.narr-section{margin-bottom:8px;}
+.narr-section-label{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;}
+.narr-section-text{font-size:11px;color:var(--text);line-height:1.6;}
+.narr-section-text.pain{color:var(--neg);}
+.narr-section-text.action{color:var(--accent4);}
+
+/* ── KPI COMPARISON TABLE ────────────────────────────────────────────────── */
+.kpi-compare-table{width:100%;border-collapse:collapse;font-size:12px;}
+.kpi-compare-table th{background:var(--surface);color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);}
+.kpi-compare-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.kpi-compare-table tr:hover td{background:rgba(255,255,255,.02);}
+.kpi-val-cell{font-size:18px;font-weight:800;}
+.kpi-group-row td{background:var(--bg);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);padding:8px 12px;}
+
+/* ── ACTION CARDS ────────────────────────────────────────────────────────── */
+.action-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;}
+.action-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;}
+.action-theme{font-size:13px;font-weight:700;flex:1;}
+.action-meta{font-size:11px;color:var(--muted);margin-bottom:6px;}
+.action-text{font-size:12px;color:var(--text);line-height:1.65;background:rgba(79,124,255,.08);border-left:3px solid var(--accent);border-radius:0 6px 6px 0;padding:10px 12px;}
+.action-just{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5;font-style:italic;}
+.action-gap-tag{font-size:10px;padding:2px 8px;border-radius:4px;white-space:nowrap;margin-top:4px;display:inline-block;}
+
+/* ── EXEC SUMMARY BOX ────────────────────────────────────────────────────── */
+.exec-box{background:linear-gradient(135deg,#1c2030,#0f172a);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px;position:relative;overflow:hidden;}
+.exec-box::before{content:'';position:absolute;top:-60px;right:-60px;width:220px;height:220px;background:radial-gradient(circle,rgba(79,124,255,.10) 0%,transparent 70%);}
+.exec-box-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px;}
+.exec-box-text{font-size:12px;color:var(--text);line-height:1.7;}
+
+/* ── QUESTION DETAILS SECTION ────────────────────────────────────────────── */
+.qd-section{margin-top:14px;}
+.qd-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.qd-col-head{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:6px 10px;border-radius:6px 6px 0 0;margin-bottom:1px;}
+.qd-q-row{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:9px 11px;margin-bottom:5px;}
+.qd-q-text{font-size:11px;color:var(--muted);font-style:italic;margin-bottom:5px;line-height:1.5;}
+.qd-q-no-match{font-size:10px;color:var(--neg);font-style:italic;margin-top:2px;}
+.dir-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.scroll-x{overflow-x:auto;}
+.no-data{font-size:12px;color:var(--muted);padding:20px;text-align:center;}
+</style>
+</head>
+<body>
+
+<div id="dashboard">
+
+  <!-- ── HEADER ─────────────────────────────────────────────────────────── -->
+  <div class="app-header">
+    <div class="app-logo">
+      <div class="app-brand">exaze<span>.</span></div>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.04em;">
+      LEADER vs ASSOCIATE — PERCEPTION GAP ANALYSIS
+    </div>
+    <div class="header-right">
+      <div class="hbadge" id="hb-assoc"><span>👥 Associates</span><strong id="hb-assoc-val">—</strong></div>
+      <div class="hbadge" id="hb-leaders"><span>👔 Leaders</span><strong id="hb-leader-val">—</strong></div>
+      <div class="hbadge" id="hb-gap"><span>Avg Gap</span><strong id="hb-gap-val">—</strong></div>
+      <div class="hbadge" style="color:var(--muted);font-size:10px;" id="hb-date">—</div>
+    </div>
+  </div>
+
+  <!-- ── TAB BAR ────────────────────────────────────────────────────────── -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="showTab('p-overview',this)">📊 Executive Overview</button>
+    <button class="tab-btn"        onclick="showTab('p-pillars',this)">🔍 Pillar Analysis</button>
+    <button class="tab-btn"        onclick="showTab('p-kpis',this)">📐 KPI Matrix</button>
+    <button class="tab-btn"        onclick="showTab('p-actions',this)">🎯 Priority Actions</button>
+  </div>
+
+  <!-- ── PAGES ──────────────────────────────────────────────────────────── -->
+  <div class="page-wrap">
+
+    <!-- ════ PAGE 1: EXECUTIVE OVERVIEW ════ -->
+    <div class="page active" id="p-overview">
+      <div class="page-header">
+        <div class="page-title">Executive Overview</div>
+        <div class="page-sub" id="ov-sub">Leaders vs Associates · Perception Gap Dashboard</div>
+      </div>
+
+      <!-- Diagnostic banner — shows what was loaded; hidden once data renders -->
+      <div id="diag-banner" style="background:rgba(79,124,255,.12);border:1px solid rgba(79,124,255,.3);border-radius:8px;padding:14px;margin-bottom:16px;font-size:12px;font-family:monospace;display:none;">
+        <div style="color:var(--accent);font-weight:700;margin-bottom:6px;">📊 Data Diagnostic</div>
+        <div id="diag-text" style="color:var(--muted);line-height:1.8;white-space:pre-wrap;"></div>
+        <div style="margin-top:8px;color:var(--muted);font-size:11px;">Open F12 → Console and type <span style="color:var(--pos)">GAP_DATA</span> to inspect the full object.</div>
+      </div>
+
+      <!-- Score tiles -->
+      <div class="stats-row" id="ov-tiles"></div>
+
+      <!-- Exec summaries -->
+      <div class="two-col" id="ov-summaries"></div>
+
+      <!-- AI Executive Summary -->
+      <div class="section-label">AI Gap Analysis Summary</div>
+      <div class="exec-box" id="ai-exec-box" style="display:none">
+        <div class="exec-box-label" style="color:var(--accent4)">🤖 AI-Generated Executive Gap Summary</div>
+        <div class="exec-box-text" id="ai-exec-text"></div>
+      </div>
+
+      <!-- Sentiment comparison -->
+      <div class="section-label">Overall Sentiment Comparison</div>
+      <div class="card">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <div>
+            <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;">👥 ASSOCIATE SENTIMENT</div>
+            <div class="sentiment-bar" id="assoc-sent-bar"></div>
+            <div class="sent-legend" id="assoc-sent-legend"></div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;">👔 LEADER SENTIMENT</div>
+            <div class="sentiment-bar" id="leader-sent-bar"></div>
+            <div class="sent-legend" id="leader-sent-legend"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Traffic light table -->
+      <div class="section-label">Traffic Light Overview — Perception Gaps by Pillar</div>
+      <div class="card scroll-x">
+        <table class="tl-table">
+          <thead>
+            <tr>
+              <th>Strategic Pillar</th>
+              <th style="text-align:center">Signal</th>
+              <th style="text-align:right">👔 Leader</th>
+              <th style="text-align:right">👥 Associate</th>
+              <th style="text-align:right">Gap</th>
+              <th>Direction</th>
+              <th>Business Risk</th>
+            </tr>
+          </thead>
+          <tbody id="tl-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Gap impact table -->
+      <div class="section-label">Gap Impact & Business Risk</div>
+      <div class="card scroll-x">
+        <table class="tl-table">
+          <thead>
+            <tr>
+              <th>Strategic Pillar</th>
+              <th>Gap Indicates</th>
+              <th>Business Risk</th>
+              <th style="text-align:center">Signal</th>
+            </tr>
+          </thead>
+          <tbody id="risk-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ════ PAGE 2: PILLAR ANALYSIS ════ -->
+    <div class="page" id="p-pillars">
+      <div class="page-header">
+        <div class="page-title">Pillar Deep-Dive</div>
+        <div class="page-sub">Score comparison, sentiment breakdown and category narratives per pillar</div>
+      </div>
+
+      <!-- Filter bar -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;" id="pillar-filters">
+        <button onclick="filterPillars('all',this)"   style="all:unset;cursor:pointer;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;background:var(--accent);color:#fff;border:1px solid var(--accent);">All</button>
+        <button onclick="filterPillars('red',this)"   style="all:unset;cursor:pointer;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;color:var(--neg);border:1px solid rgba(255,107,107,.3);">🔴 Significant Gap</button>
+        <button onclick="filterPillars('orange',this)"style="all:unset;cursor:pointer;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;color:var(--accent4);border:1px solid rgba(251,191,36,.3);">🟠 Moderate Gap</button>
+        <button onclick="filterPillars('green',this)" style="all:unset;cursor:pointer;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;color:var(--pos);border:1px solid rgba(52,211,153,.3);">🟢 Aligned</button>
+      </div>
+      <div id="pillar-cards"></div>
+    </div>
+
+    <!-- ════ PAGE 3: KPI MATRIX ════ -->
+    <div class="page" id="p-kpis">
+      <div class="page-header">
+        <div class="page-title">KPI Comparison Matrix</div>
+        <div class="page-sub">Side-by-side KPI values from both Associate and Leader analyses</div>
+      </div>
+      <div class="section-label">KPI Grid</div>
+      <div class="kpi-grid" id="kpi-score-grid"></div>
+      <div class="section-label">Detailed KPI Comparison</div>
+      <div class="card scroll-x">
+        <table class="kpi-compare-table">
+          <thead>
+            <tr>
+              <th>KPI Group</th>
+              <th>👥 Associate KPI</th>
+              <th style="text-align:right">Associate Value</th>
+              <th>👔 Leader KPI</th>
+              <th style="text-align:right">Leader Value</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="kpi-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ════ PAGE 4: PRIORITY ACTIONS ════ -->
+    <div class="page" id="p-actions">
+      <div class="page-header">
+        <div class="page-title">Priority Action Points</div>
+        <div class="page-sub">Derived from associate pain areas, suggestion themes, and perception gaps</div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+        <button onclick="filterActions('all',this)"  style="all:unset;cursor:pointer;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;background:var(--accent);color:#fff;border:1px solid var(--accent);">All</button>
+        <button onclick="filterActions('Now',this)"  style="all:unset;cursor:pointer;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;color:var(--neg);border:1px solid rgba(255,107,107,.3);">🔴 Now — Act Immediately</button>
+        <button onclick="filterActions('Next',this)" style="all:unset;cursor:pointer;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;color:var(--accent4);border:1px solid rgba(251,191,36,.3);">🟠 Next — Plan & Build</button>
+        <button onclick="filterActions('Later',this)"style="all:unset;cursor:pointer;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;color:var(--pos);border:1px solid rgba(52,211,153,.3);">🟢 Later — Sustain</button>
+      </div>
+      <div id="action-cards"></div>
+    </div>
+
+  </div><!-- /page-wrap -->
+</div><!-- /dashboard -->
+
+<script type="application/json" id="gap-data-raw">{"meta": {"generated": "2026-07-01 16:53:44", "associates_file": "AssociatesExperience_Analysis.xlsx", "leaders_file": "LeadersExperience_Analysis_2.xlsx", "associates_surveyed": "157", "leaders_surveyed": "35"}, "overall": {"assoc_score": 64.0, "leader_score": 67.0, "overall_gap": 3.0, "assoc_pos": 57.4, "assoc_neg": 6.1, "assoc_neu": 36.5, "leader_pos": 74.0, "leader_neg": 9.5, "leader_neu": 16.5, "assoc_summary": "The team scored an Overall Experience Score of 64 from 157 associates. The top strengths are a positive team culture, high morale, collaboration and teamwork. Resolving the top risk areas, including lack of recognition, Management Support Challenges, and career growth concerns, will directly improve outcomes like retention and career growth.", "leader_summary": "Across 35 leaders, the team achieved an overall score of 67, reflecting a foundation built on positive culture, inclusion, and strong collaboration. To sustain this momentum, targeted attention is needed on growth opportunities, communication effectiveness, and equitable career progression — areas that directly influence retention and long-term engagement.", "exco_summary": "The executive team recognizes that the organization is evolving, with opportunities for innovation and growth, supported by a stable and collaborative work environment. However, they highlight key gaps around clarity of purpose and mission, alignment of functional objectives with the strategic vision, and effectiveness of cross-functional collaboration. Notably, their perspectives on organizational direction and leadership are more nuanced than those of the broader leadership group, reflecting a balanced view of the organization’s strengths and areas for improvement, with some expressing strong alignment and others reporting occasional uncertainty around priorities.", "ai_exec_summary": "The overall gap between associate and leader scores is 3.0%, with associates scoring 64.0 and leaders scoring 67.0. The highest priority gaps are in Communication & Transparency and Leadership Trust & Effectiveness, with significant disparities. To mitigate business risk, Exaze leadership must urgently address these gaps to improve overall performance and trust.", "tl": "green"}, "pillars": [{"name": "Communication & Transparency", "assoc_cat": "", "leader_cat": "", "score_source": "Question Sentiment", "assoc_score": 50.0, "leader_score": 67.1, "gap": 17.1, "abs_gap": 17.1, "tl": "orange", "direction": "Leaders more optimistic", "business_risk": "Alignment & Trust Risk", "assoc_band": "Fair", "leader_band": "Good", "assoc_pos": 0.0, "assoc_neg": 0.0, "assoc_neu": 100.0, "leader_pos": 53.3, "leader_neg": 19.1, "leader_neu": 27.6, "assoc_count": "292", "leader_count": "105", "ai_direction": "Leaders overestimate", "ai_key_tension": "The sharpest tension lies in the fact that leaders believe they have clear visibility into key drivers of attrition, while associates do not provide any positive or negative responses regarding leadership's actions to deepen trust and ensure transparency, indicating a lack of awareness or understanding of leadership's efforts.", "ai": {"gap_narrative": "Leaders overestimate overall direction, while associates lack clear sentiment. Leaders believe they have visibility into attrition drivers, but associates don't confirm this.", "root_cause": "The key tension lies in leaders' perceived visibility into attrition drivers, which associates don't acknowledge.", "business_impact": "Unaddressed, this gap may lead to increased attrition.", "recommended_action": "Conduct regular pulse checks to align leader and associate perceptions."}, "assoc_narr": {}, "leader_narr": {}, "assoc_questions": [{"mapped_q": "What specific actions can leadership take to deepen trust and ensure transparent communication?", "matched_q": "What specific actions can leadership take to deepen trust and ensure transparent communication throughout organisation?", "count": "147", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}, {"mapped_q": "If you could share one message to leadership to improve your experience at Exaze, what would it be?", "matched_q": "If you could share one message to leadership to improve your experience at organisation, what would it be?", "count": "145", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}], "leader_questions": [{"mapped_q": "Do you agree that leadership has clear visibility into the key drivers of attrition?", "matched_q": "Do you agree that Leadership has clear visibility into the key drivers of attrition?", "count": "35", "pos": 65.7, "neg": 11.4, "neu": 22.9, "sent_score": 77.2}, {"mapped_q": "Do you agree that insights from exit and stay interviews are actively used to shape retention strategies?", "matched_q": "Do you agree that Insights from exit and stay interviews are actively used to shape retention strategies?", "count": "35", "pos": 45.7, "neg": 22.9, "neu": 31.4, "sent_score": 61.4}, {"mapped_q": "Do you agree that early indicators of disengagement are proactively detected and acted upon?", "matched_q": "Do you agree that Early indicators of disengagement are proactively detected and acted upon?", "count": "35", "pos": 48.6, "neg": 22.9, "neu": 28.6, "sent_score": 62.8}]}, {"name": "Leadership Trust & Effectiveness", "assoc_cat": "Leadership & Trust", "leader_cat": "Leadership & Trust", "score_source": "Effectiveness Sheet", "assoc_score": 59.9, "leader_score": 75.2, "gap": 15.3, "abs_gap": 15.3, "tl": "orange", "direction": "Leaders more optimistic", "business_risk": "Leadership Credibility Risk", "assoc_band": "Fair", "leader_band": "Good", "assoc_pos": 48.6, "assoc_neg": 6.7, "assoc_neu": 44.7, "leader_pos": 84.7, "leader_neg": 6.9, "leader_neu": 8.4, "assoc_count": "1854", "leader_count": "509", "ai_direction": "Leaders overestimate", "ai_key_tension": "The key tension lies in the fact that while leaders report taking actions to strengthen trust and demonstrate mutual respect, associates do not provide specific examples or sentiments about what inspires their confidence in leaders or what actions leadership can take to deepen trust.", "ai": {"gap_narrative": "Leaders overestimate overall direction, while associates lack specific examples of trust-inspiring actions. Associates feel comfortable sharing ideas, but recognition and empathy gaps exist.", "root_cause": "Associates do not provide specific examples of what inspires their confidence in leaders.", "business_impact": "Unaddressed, credibility risk may lead to disengagement.", "recommended_action": "Implement regular recognition programs."}, "assoc_narr": {"summary": "The survey highlights a strong foundation of approachable leadership, open communication, and supportive feedback. Associates generally feel comfortable sharing ideas and engaging with leaders. However, opportunities remain to strengthen trust through more meaningful recognition, empathetic performance conversations, and consistent developmental feedback that supports growth and engagement.", "strengths": "• Approachable leadership that fosters psychological safety and open dialogue (96 associates)\n• Constructive, growth-oriented feedback that motivates and guides associates (95 associates)\n• Empathetic and empowering leadership with clear guidance and well-being support (92 associates)", "pain": "• Recognition Gap: Associates feel contributions and achievements are not consistently recognized. (35 associates)\n• Empathy in Performance Discussions: Performance conversations are not always conducted with sufficient empathy and understanding. (28 associates)\n• Quality of Feedback: Feedback is not always constructive or focused on development. (22 associates)", "action": "• Strengthen Recognition: Implement regular and meaningful recognition programs to celebrate contributions and milestones.\n• Build Empathetic Leadership: Equip leaders with active listening and empathetic communication skills.\n• Enhance Feedback Practices: Adopt a structured feedback approach focused on growth, development, and continuous improvement."}, "leader_narr": {"summary": "Leaders demonstrate mutual respect, trust, and collaborative decision-making, while consistently emphasising that open communication remains a priority area for continued focus. While many leaders feel they are empowered to make decisions,a few leaders feel there is lack of transparency in decision making.", "strengths": "•Leaders empower team members to make decisions (34 leaders)\n•Transparency and accountability are highly valued (21 leaders)\n•Collaborative decision-making is encouraged (25 leaders)", "pain": "•\tLack of transparency in communication and decision-making (12 Leaders)\n•\tLimited display of empathy in leadership interactions(12 Leaders)\n•\tInconsistent accountability across teams(12 Leaders)", "action": "•\tDrive transparency through consistent communication and clarity in decision-making\n•\tStrengthen empathetic leadership through coaching, active listening, and inclusive engagement\n•\tStrengthen accountability by setting clear expectations and ownership across teams"}, "assoc_questions": [{"mapped_q": "What qualities or behaviors in a leader inspire your confidence?", "matched_q": "What qualities or behaviors in a leader inspire your confidence in their decisions?", "count": "472", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}, {"mapped_q": "To what extent do you agree that your lead is approachable and creates a safe and open environment where ideas and concerns can be shared freely?", "matched_q": "My lead is approachable and creates a safe and open environment where ideas and concerns can be shared freely.", "count": "157", "pos": 86.6, "neg": 13.4, "neu": 0.0, "sent_score": 86.6}, {"mapped_q": "To what extent do you agree that performance discussions with your lead are conducted with empathy and understanding of individual circumstances?", "matched_q": "Performance discussions are conducted with empathy and understanding of individual circumstances.", "count": "157", "pos": 82.2, "neg": 17.8, "neu": 0.0, "sent_score": 82.2}, {"mapped_q": "To what extent do you agree that your lead provides feedback that is constructive, respectful, and growth-oriented?", "matched_q": "My lead provides feedback that is constructive, respectful, and growth-oriented.", "count": "157", "pos": 86.0, "neg": 14.0, "neu": 0.0, "sent_score": 86.0}, {"mapped_q": "What specific actions can leadership take to deepen trust and ensure transparent communication?", "matched_q": "What specific actions can leadership take to deepen trust and ensure transparent communication throughout organisation?", "count": "147", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}, {"mapped_q": "If you could share one message to leadership to improve your experience at Exaze, what would it be?", "matched_q": "If you could share one message to leadership to improve your experience at organisation, what would it be?", "count": "145", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}], "leader_questions": [{"mapped_q": "Which actions have you taken to strengthen trust?", "matched_q": "Which of the following actions have you taken to strengthen trust in your team?", "count": "97", "pos": 99.0, "neg": 0.0, "neu": 1.0, "sent_score": 99.5}, {"mapped_q": "How effectively do you welcome diverse perspectives and handle differing opinions constructively?", "matched_q": "Do you agree that you welcome diverse perspectives and handle differing opinions constructively?", "count": "35", "pos": 100.0, "neg": 0.0, "neu": 0.0, "sent_score": 100.0}, {"mapped_q": "How effectively do you approach performance discussions with empathy and understanding of individual circumstances?", "matched_q": "Do you agree that you approach Performance discussions with empathy and understanding of individual circumstances?", "count": "35", "pos": 91.4, "neg": 2.9, "neu": 5.7, "sent_score": 94.2}, {"mapped_q": "How effectively do you demonstrate mutual respect and trust in your interactions with team members?", "matched_q": "Do you agree that you demonstrate mutual respect and trust in your interactions with team members?", "count": "35", "pos": 97.1, "neg": 2.9, "neu": 0.0, "sent_score": 97.1}, {"mapped_q": "What behaviors erode trust most quickly?", "matched_q": "(no match)", "count": "0", "pos": 0.0, "neg": 0.0, "neu": 0.0, "sent_score": 50.0}]}, {"name": "Associate Experience & Engagement", "assoc_cat": "", "leader_cat": "", "score_source": "Question Sentiment", "assoc_score": 91.2, "leader_score": 80.5, "gap": -10.7, "abs_gap": 10.7, "tl": "orange", "direction": "Associates more positive", "business_risk": "Engagement Risk", "assoc_band": "Good", "leader_band": "Good", "assoc_pos": 85.1, "assoc_neg": 2.8, "assoc_neu": 12.1, "leader_pos": 68.8, "leader_neg": 7.8, "leader_neu": 23.4, "assoc_count": "616", "leader_count": "141", "ai_direction": "Leaders underestimate", "ai_key_tension": "The leaders' lack of awareness of the associates' negative experiences with top-down decisions and the desire for more open discussions and consideration of team input creates a tension between the associates' desire for a more collaborative work environment and the leaders' perception of their own practices.", "ai": {"gap_narrative": "Associates are more positive about their energy and work environment than leaders. Leaders underestimate the team's overall direction and sentiment.", "root_cause": "Leaders' lack of awareness of associates' negative experiences with top-down decisions creates tension.", "business_impact": "Unaddressed, this gap may lead to decreased collaboration and morale.", "recommended_action": "Hold regular open discussions to consider team input."}, "assoc_narr": {}, "leader_narr": {}, "assoc_questions": [{"mapped_q": "Which phrase best captures your current energy and outlook at work?", "matched_q": "Which phrase best captures your current energy and outlook at work?", "count": "157", "pos": 94.3, "neg": 5.1, "neu": 0.6, "sent_score": 94.6}, {"mapped_q": "If our workplace were a playlist, which vibe best describes our work environment?", "matched_q": "If our workplace were a playlist, which vibe best describes our work environment? 🎵", "count": "157", "pos": 75.8, "neg": 1.3, "neu": 22.9, "sent_score": 87.2}, {"mapped_q": "If you could describe Exaze's culture in one word, what would it be?", "matched_q": "If you could describe organisation's culture in one word, what would it be?", "count": "153", "pos": 81.0, "neg": 2.0, "neu": 17.0, "sent_score": 89.5}, {"mapped_q": "What's one recent moment that made you feel proud of your team or organization?", "matched_q": "What’s one recent moment that made you feel proud of your team or organization?", "count": "149", "pos": 89.3, "neg": 2.7, "neu": 8.1, "sent_score": 93.3}], "leader_questions": [{"mapped_q": "In one sentence, how would you describe the \"energy\" of your team right now?", "matched_q": "In one sentence, how would you describe the “energy” of your team right now?", "count": "35", "pos": 57.1, "neg": 0.0, "neu": 42.9, "sent_score": 78.6}, {"mapped_q": "If our workplace were a playlist, which vibe best describes our work environment?", "matched_q": "(no match)", "count": "0", "pos": 0.0, "neg": 0.0, "neu": 0.0, "sent_score": 50.0}, {"mapped_q": "Overall, how would you describe your current experience at Exaze?", "matched_q": "Overall, how would you describe your current experience at Exaze?", "count": "35", "pos": 80.0, "neg": 2.9, "neu": 17.1, "sent_score": 88.6}, {"mapped_q": "What's one recent moment that made you feel proud of your team or organization?", "matched_q": "What’s one recent moment that made you feel proud of your team or organization?", "count": "35", "pos": 94.3, "neg": 0.0, "neu": 5.7, "sent_score": 97.2}, {"mapped_q": "If you could change one thing to make Exaze an even better place to work, what would it be?", "matched_q": "If you could change one thing to make Exaze an even better place to work, what would it be?", "count": "36", "pos": 44.4, "neg": 27.8, "neu": 27.8, "sent_score": 58.3}]}, {"name": "Retention & Sustainability", "assoc_cat": "Retention & Sustainability", "leader_cat": "Retention & Sustainability", "score_source": "Effectiveness Sheet", "assoc_score": 40.0, "leader_score": 50.3, "gap": 10.3, "abs_gap": 10.3, "tl": "orange", "direction": "Leaders more optimistic", "business_risk": "Attrition Risk", "assoc_band": "Needs Attention", "leader_band": "Fair", "assoc_pos": 0.0, "assoc_neg": 0.0, "assoc_neu": 100.0, "leader_pos": 48.6, "leader_neg": 22.9, "leader_neu": 28.5, "assoc_count": "297", "leader_count": "35", "ai_direction": "Leaders underestimate", "ai_key_tension": "The sharpest tension lies in the fact that associates do not express concerns about exploring new opportunities, yet leaders identify significant drivers of attrition, such as misalignment between role and career goals, indicating a potential disconnect between associate experiences and leader perceptions.", "ai": {"gap_narrative": "Leaders and associates have differing views on attrition risk, with leaders identifying significant drivers. Associates' neutral responses indicate a lack of clear concerns.", "root_cause": "A disconnect exists between leaders' and associates' perceptions of career goals alignment.", "business_impact": "Unaddressed attrition risk may lead to talent loss.", "recommended_action": "Conduct regular feedback sessions"}, "assoc_narr": {"summary": "", "strengths": "", "pain": "", "action": ""}, "leader_narr": {"summary": "Retention & Sustainability scores are a downstream consequence of root-cause issues, including Limited Growth Opportunities, Ineffective Communication & Transparency, and Inequitable Career Growth. Resolving these root causes will improve this category.", "strengths": "•Organizational structures support career growth (25 leaders)\n•Leadership has visibility into attrition drivers (23 leaders)\n•Retention initiatives are aligned with business priorities (21 leaders)", "pain": "• Misalignment between role and career goals (23 leaders)\n• Gaps in leadership support or communication (9 leaders)\n• Compensation and benefits (9 leaders)", "action": "•\tEnable better role–career alignment through clear growth paths and mobility opportunities\n•\tStrengthen leadership support through consistent communication and active team engagement\n•\tDrive competitive, equitable compensation aligned to role value and expectations"}, "assoc_questions": [{"mapped_q": "What factors might influence your decision to explore new opportunities outside the organization?", "matched_q": "What factors might influence your decision to explore new opportunities outside the organization?", "count": "297", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}], "leader_questions": [{"mapped_q": "Which of the following are the significant drivers of attrition at Exaze?", "matched_q": "Which of the following are the significant drivers of attrition at Exaze?", "count": "60", "pos": 0.0, "neg": 98.3, "neu": 1.7, "sent_score": 0.9}, {"mapped_q": "Do you agree that leadership has clear visibility into the key drivers of attrition?", "matched_q": "Do you agree that Leadership has clear visibility into the key drivers of attrition?", "count": "35", "pos": 65.7, "neg": 11.4, "neu": 22.9, "sent_score": 77.2}, {"mapped_q": "Do you agree that insights from exit and stay interviews are actively used to shape retention strategies?", "matched_q": "Do you agree that Insights from exit and stay interviews are actively used to shape retention strategies?", "count": "35", "pos": 45.7, "neg": 22.9, "neu": 31.4, "sent_score": 61.4}, {"mapped_q": "Do you agree that early indicators of disengagement are proactively detected and acted upon?", "matched_q": "Do you agree that Early indicators of disengagement are proactively detected and acted upon?", "count": "35", "pos": 48.6, "neg": 22.9, "neu": 28.6, "sent_score": 62.8}, {"mapped_q": "Do you agree that retention initiatives are aligned with business priorities and tailored to different associate segments?", "matched_q": "Do you agree that Retention initiatives are aligned with business priorities and tailored to different associate segments?", "count": "35", "pos": 60.0, "neg": 14.3, "neu": 25.7, "sent_score": 72.8}, {"mapped_q": "Do you agree that organizational structures and policies support both career growth and retention of critical talent?", "matched_q": "Do you agree that Organizational structures and policies support both career growth and retention of critical talent?", "count": "35", "pos": 71.4, "neg": 2.9, "neu": 25.7, "sent_score": 84.2}]}, {"name": "Recognition & Rewards", "assoc_cat": "", "leader_cat": "", "score_source": "Question Sentiment", "assoc_score": 78.3, "leader_score": 85.7, "gap": 7.4, "abs_gap": 7.4, "tl": "green", "direction": "Leaders more optimistic", "business_risk": "Motivation Risk", "assoc_band": "Good", "leader_band": "Good", "assoc_pos": 78.3, "assoc_neg": 21.7, "assoc_neu": 0.0, "leader_pos": 75.7, "leader_neg": 4.3, "leader_neu": 20.0, "assoc_count": "157", "leader_count": "70", "ai_direction": "Leaders overestimate", "ai_key_tension": "The key tension lies in the fact that while 21.7% of associates disagreed with the idea that career advancement and promotions at Exaze are fair, only 5.7% of leaders disagreed that leadership ensures promotions and growth decisions are fair and strategically driven, indicating a direct contradiction between associate experiences and leader self-assessments.", "ai": {"gap_narrative": "Leaders overestimate recognition and rewards, with a 7.4% higher score than associates. Associates expressed concerns about fairness in career advancement and promotions.", "root_cause": "The key tension lies in leaders' and associates' differing perceptions of fairness in promotions and growth decisions.", "business_impact": "Unaddressed, this gap may lead to decreased associate motivation and retention.", "recommended_action": "Conduct regular fairness audits of promotion decisions."}, "assoc_narr": {}, "leader_narr": {}, "assoc_questions": [{"mapped_q": "To what extent do you agree that career advancement and promotions at Exaze are based on demonstrated skills, readiness, and ability to take on the next role effectively?", "matched_q": "I believe career advancement and promotions are based on my demonstrated skills, readiness, and ability to take on the next role effectively.", "count": "157", "pos": 78.3, "neg": 21.7, "neu": 0.0, "sent_score": 78.3}], "leader_questions": [{"mapped_q": "How effectively does leadership ensure that promotions and growth decisions are fair and strategically driven?", "matched_q": "Do you agree that the Leadership ensures that promotions and growth decisions are fair and strategically driven?", "count": "35", "pos": 65.7, "neg": 5.7, "neu": 28.6, "sent_score": 80.0}, {"mapped_q": "Do you agree that we proactively build successors and future leaders?", "matched_q": "Do you agree that We proactively build successors and future leaders?", "count": "35", "pos": 85.7, "neg": 2.9, "neu": 11.4, "sent_score": 91.4}]}, {"name": "Culture, Inclusion & Wellbeing", "assoc_cat": "Culture & Belonging", "leader_cat": "Culture & Belonging", "score_source": "Effectiveness Sheet", "assoc_score": 67.7, "leader_score": 73.8, "gap": 6.1, "abs_gap": 6.1, "tl": "green", "direction": "Leaders more optimistic", "business_risk": "Burnout & Inclusion Risk", "assoc_band": "Good", "leader_band": "Good", "assoc_pos": 68.7, "assoc_neg": 3.8, "assoc_neu": 27.5, "leader_pos": 82.2, "leader_neg": 4.3, "leader_neu": 13.5, "assoc_count": "3179", "leader_count": "281", "ai_direction": "Leaders overestimate", "ai_key_tension": "The fact that 6.1% of associates reported feeling that there is limited openness from leadership to consider feedback directly contradicts leaders' reports of proactively seeking and valuing all perspectives.", "ai": {"gap_narrative": "Leaders overestimate openness, while associates report comfort in sharing ideas. However, 6.1% of associates feel leadership is not open to feedback.", "root_cause": "Leaders' reports of seeking diverse viewpoints contradict associates' feelings of limited openness.", "business_impact": "Unaddressed, this gap may lead to disengagement and turnover.", "recommended_action": "Regularly solicit and act on associate feedback."}, "assoc_narr": {"summary": "The Culture and Belonging Survey highlights a positive and collaborative team environment where associates feel motivated, supported, and aligned with the organization's values. Strong teamwork, supportive leadership, and cultural alignment contribute to a sense of stability and engagement. However, opportunities exist to strengthen inclusion by ensuring associates feel recognized for their contributions, empowered to take initiative, and connected to organizational decisions and initiatives.", "strengths": "• Strong alignment between personal values and organizational culture (120 associates)\n• Supportive leadership and peer relationship (120 associates)\n• Opportunities for collaboration and teamwork (90 associates)", "pain": "• Recognition Gap: Some associates do not feel their contributions are adequately recognized or valued. (44 associates)\n• Limited Empowerment: Associates feel there are fewer opportunities to take initiative beyond their core responsibilities. (24 associates)\n• Onboarding Experience: New associates do not always feel welcomed and included during their initial interactions with the team and leadership. (17 associates)", "action": "• Strengthen Recognition: Implement regular recognition and feedback mechanisms to celebrate contributions.\n• Encourage Ownership: Provide opportunities for associates to lead initiatives, take on stretch assignments, and contribute beyond their roles.\n• Enhance Onboarding: Create a structured onboarding experience that enhances connection, inclusion, and support from day one."}, "leader_narr": {"summary": "While the overall experience and sense of belonging remain strong, limited access to career advancement opportunities reveals a structural gap that could impact sustained engagement and retention.", "strengths": "•Leadership promotes a sense of connection among peers (29 leaders)\n•Organization supports employee growth and engagement (35 leaders)", "pain": "", "action": "• Enhance team connectedness to further strengthen belonging \n• Scope for more inclusive participation across discussions and decision-making\n• Continued focus on clarity and transparency in communication"}, "assoc_questions": [{"mapped_q": "How would you describe your comfortability in sharing ideas, opinions, or concerns at Exaze?", "matched_q": "How would you describe your comfortability in sharing ideas, opinions, or concerns at organisation?", "count": "148", "pos": 79.1, "neg": 6.1, "neu": 14.9, "sent_score": 86.5}, {"mapped_q": "The lead thoughtfully supports associates' well-being while providing clear guidance and encouragement to achieve team objectives.", "matched_q": "My lead thoughtfully supports associates’ well-being while providing clear guidance and encouragement to achieve team objectives.", "count": "157", "pos": 84.1, "neg": 3.2, "neu": 12.7, "sent_score": 90.4}], "leader_questions": [{"mapped_q": "In team meetings, how do you approach differing opinions?", "matched_q": "(no match)", "count": "0", "pos": 0.0, "neg": 0.0, "neu": 0.0, "sent_score": 50.0}, {"mapped_q": "How do you handle mistakes or risks raised by the team?", "matched_q": "How do you handle mistakes or risks raised by the team?", "count": "62", "pos": 82.3, "neg": 1.6, "neu": 16.1, "sent_score": 90.4}, {"mapped_q": "How would you describe your approach to seeking diverse viewpoints?", "matched_q": "How would you describe your approach to seeking and listening to diverse viewpoints within your team?", "count": "35", "pos": 94.3, "neg": 0.0, "neu": 5.7, "sent_score": 97.2}, {"mapped_q": "What initiatives could you adopt to strengthen belonging and inclusion?", "matched_q": "(no match)", "count": "0", "pos": 0.0, "neg": 0.0, "neu": 0.0, "sent_score": 50.0}]}, {"name": "Career Growth & Development", "assoc_cat": "Career & Growth", "leader_cat": "Career & Growth", "score_source": "Effectiveness Sheet", "assoc_score": 63.8, "leader_score": 63.1, "gap": -0.7, "abs_gap": 0.7, "tl": "green", "direction": "Associates more positive", "business_risk": "Talent Retention Risk", "assoc_band": "Fair", "leader_band": "Fair", "assoc_pos": 56.5, "assoc_neg": 9.0, "assoc_neu": 34.5, "leader_pos": 55.8, "leader_neg": 17.6, "leader_neu": 26.6, "assoc_count": "2723", "leader_count": "346", "ai_direction": "Leaders underestimate", "ai_key_tension": "The sharpest tension lies in the fact that while 78.3% of associates view their career development as structured and clearly defined, only 17.1% of leaders believe career progression is clearly defined and well-communicated, indicating a significant discrepancy in their views on this aspect.", "ai": {"gap_narrative": "Associates view career development as structured, but leaders see it as unclear. Leaders underestimate career progression clarity.", "root_cause": "Leaders and associates have differing views on career progression clarity.", "business_impact": "Talent retention risk increases if unclear progression persists.", "recommended_action": "Clarify promotion paths"}, "assoc_narr": {"summary": "The Career Growth and Development survey reflects a mixed experience among associates. While many value the available learning opportunities, mentorship, and exposure to challenging work, concerns remain around career progression, promotion transparency, and access to development resources. Strengthening career visibility and development support will help improve engagement and growth satisfaction.", "strengths": "• Training and learning opportunities(51 associates)\n• Mentorship and guidance from team members(51 associates)\n• Exposure to challenging and meaningful projects(51 associates)", "pain": "• Career Progression Challenges: Associates face barriers that impact their growth within the organization. (40 associates)\n• Lack of Career Clarity: Advancement and promotion paths are not always clear or transparent. (34 associates)\n• Limited Learning Resources: Some associates are dissatisfied with the availability of learning and development resources. (12 associates)", "action": "• Strengthen Career Conversations: Provide regular feedback and development-focused performance reviews.\n• Improve Career Visibility: Define and communicate clear career progression and promotion pathways.\n• Expand Learning Support: Increase access to learning resources, training programs, and skill-development opportunities."}, "leader_narr": {"summary": "While the team recognises and appreciates career growth opportunities, a significant number of leaders point to gaps that still need to be addressed", "strengths": "•Promotions and growth opportunities are handled fairly and transparently. (23 leaders).\n•Learning goals are embedded in performance reviews (11 leaders).\n•Skill development is recognized and rewarded (11 leaders)", "pain": "• Limited access to career advancement opportunities (15 leaders)\n• Lack of structure and clarity in career progression pathways  (9 leaders)\n• Inconsistent visibility of development programs (9 leaders)", "action": "•\tEnable transparent career progression by linking learning to advancement\n•\tBuild capability through structured learning, mentorship, and embedding learning goals into performance reviews\n•\tDrive alignment with business priorities through cross-functional exposure and recognition of skill development"}, "assoc_questions": [{"mapped_q": "Which of the following best represents your view of current career development at Exaze?", "matched_q": "Which of the following best represents your view of current career development at organisation?", "count": "157", "pos": 78.3, "neg": 21.7, "neu": 0.0, "sent_score": 78.3}, {"mapped_q": "What changes or programs could help strengthen career growth and mobility within Exaze?", "matched_q": "What changes or programs could help strengthen career growth and mobility within organisation?", "count": "144", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}, {"mapped_q": "Please describe the challenges you have faced that have impacted your career progression.", "matched_q": "Please describe the challenges you have faced that have impacted your career progression", "count": "38", "pos": 0.0, "neg": 63.2, "neu": 36.8, "sent_score": 18.4}, {"mapped_q": "To what extent do you agree that you have the opportunity to pursue meaningful career growth and internal mobility within Exaze?", "matched_q": "I have the opportunity to pursue meaningful career growth and internal mobility within organisation.", "count": "157", "pos": 78.3, "neg": 3.8, "neu": 17.8, "sent_score": 87.2}, {"mapped_q": "If you were responsible for learning and development at Exaze, what new learning opportunities would you introduce that aren't currently available?", "matched_q": "If you were responsible for learning and development at organisation, what new learning opportunities would you introduce that aren’t currently available?", "count": "355", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}, {"mapped_q": "What would make learning and development at Exaze more engaging, motivating, or relevant for you?", "matched_q": "What would make learning and development at organisation more engaging, motivating, or relevant for you?", "count": "145", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}, {"mapped_q": "How satisfied are you with the availability of training programs relevant to your role?", "matched_q": "How satisfied are you with the availability of training programs relevant to your role", "count": "157", "pos": 63.7, "neg": 4.5, "neu": 31.8, "sent_score": 79.6}, {"mapped_q": "To what extent do you agree that your professional goals are acknowledged and supported through discussions or formal development plans?", "matched_q": "My professional goals are acknowledged and supported through discussions or plans.", "count": "157", "pos": 81.5, "neg": 18.5, "neu": 0.0, "sent_score": 81.5}], "leader_questions": [{"mapped_q": "Which of the following best describes your view on associate's current career progression?", "matched_q": "Which of the following best describes your view on associate’s current career progression?", "count": "35", "pos": 17.1, "neg": 74.3, "neu": 8.6, "sent_score": 21.4}, {"mapped_q": "What do you believe should have the greatest influence on career progression at Exaze?", "matched_q": "What do you believe should have the greatest influence on career progression at Exaze?", "count": "35", "pos": 2.9, "neg": 0.0, "neu": 97.1, "sent_score": 51.4}, {"mapped_q": "How effectively does internal mobility support both associate career aspirations and business continuity?", "matched_q": "How successful is the Internal mobility to support both associate aspirations and business continuity?", "count": "35", "pos": 45.7, "neg": 31.4, "neu": 22.9, "sent_score": 57.2}, {"mapped_q": "If you had a blank slate, what new learning opportunities would you introduce that are currently missing?", "matched_q": "If you had a blank slate, what new learning opportunities would you introduce that are currently missing?", "count": "37", "pos": 59.5, "neg": 2.7, "neu": 37.8, "sent_score": 78.4}, {"mapped_q": "What approaches do you find most effective in promoting continuous learning within your teams?", "matched_q": "What approaches do you find most effective in promoting continuous learning within your teams?", "count": "99", "pos": 100.0, "neg": 0.0, "neu": 0.0, "sent_score": 100.0}, {"mapped_q": "How effectively are development programs designed to build capabilities that align with business goals?", "matched_q": "How successful are the Development programs designed to build capabilities that align with business goals?", "count": "35", "pos": 31.4, "neg": 31.4, "neu": 37.1, "sent_score": 50.0}, {"mapped_q": "How effectively do associate development plans balance personal growth aspirations with organizational priorities?", "matched_q": "(no match)", "count": "0", "pos": 0.0, "neg": 0.0, "neu": 0.0, "sent_score": 50.0}]}], "kpis": [{"group": "Overall", "assoc_kpi": "Overall Experience Score", "assoc_val": "64.0", "leader_kpi": "Overall Experience Score", "leader_val": "67.0", "notes": "Mean of scored categories"}, {"group": "Culture & Belonging", "assoc_kpi": "Belonging Index", "assoc_val": "67.7", "leader_kpi": "Belonging Index", "leader_val": "73.8", "notes": "Both map to Culture & Belonging"}, {"group": "Leadership & Trust", "assoc_kpi": "Leadership Effectiveness Index", "assoc_val": "59.9", "leader_kpi": "Team Energy Sentiment", "leader_val": "75.2", "notes": "Associates measure trust; leaders measure team energy"}, {"group": "Career & Growth", "assoc_kpi": "Career Growth Index", "assoc_val": "63.8", "leader_kpi": "Career Equity Index", "leader_val": "63.1", "notes": "Associates measure opportunity; leaders measure equity"}, {"group": "Retention", "assoc_kpi": "Retention Risk Indicator", "assoc_val": "", "leader_kpi": "Retention Effectiveness Index", "leader_val": "50.3", "notes": "Associates flag risk; leaders flag effectiveness"}, {"group": "Strategy (Leaders only)", "assoc_kpi": "", "assoc_val": "", "leader_kpi": "Strategy Alignment Index", "leader_val": "72.1", "notes": "No associate equivalent"}], "actions": [{"band": "Now", "theme": "Leadership Listening Loops", "action": "Regular Pulse Checks", "just": "The 17.1% gap in Communication & Transparency raises questions about leader awareness of associate concerns.", "pillar": "Communication & Transparency", "gap": 17.1}, {"band": "Now", "theme": "Trust Builders", "action": "Recognize Associate Efforts", "just": "The 15.3% gap in Leadership Trust & Effectiveness highlights leaders' overestimation of trust-building actions.", "pillar": "Leadership Trust & Effectiveness", "gap": 15.3}, {"band": "Now", "theme": "Open Decision Making", "action": "Solicit Team Input", "just": "The -10.7% gap in Associate Experience & Engagement indicates leaders' lack of awareness of associates' negative experiences with top-down decisions.", "pillar": "Associate Experience & Engagement", "gap": -10.7}, {"band": "Next", "theme": "Feedback Loops", "action": "Regular Feedback Sessions", "just": "The 10.3% gap in Retention & Sustainability raises concerns about leaders' understanding of attrition drivers.", "pillar": "Retention & Sustainability", "gap": 10.3}, {"band": "Next", "theme": "Fairness Audits", "action": "Conduct Fairness Audits", "just": "The 7.4% gap in Recognition & Rewards highlights leaders' overestimation of fairness in promotion decisions.", "pillar": "Recognition & Rewards", "gap": 7.4}, {"band": "Next", "theme": "Growth Mindset", "action": "Clarify Promotion Paths", "just": "The -0.7% gap in Career Growth & Development suggests leaders underestimate the importance of clear career progression.", "pillar": "Career Growth & Development", "gap": -0.7}, {"band": "Later", "theme": "Inclusive Culture", "action": "Solicit Associate Feedback", "just": "The 6.1% gap in Culture, Inclusion & Wellbeing indicates leaders' overestimation of openness to feedback.", "pillar": "Culture, Inclusion & Wellbeing", "gap": 6.1}]}</script>
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   DATA — read from the <script type="application/json"> tag above.
+   The embed script (embed_gap_data.py) replaces {"meta": {"generated": "2026-07-01 16:53:44", "associates_file": "AssociatesExperience_Analysis.xlsx", "leaders_file": "LeadersExperience_Analysis_2.xlsx", "associates_surveyed": "157", "leaders_surveyed": "35"}, "overall": {"assoc_score": 64.0, "leader_score": 67.0, "overall_gap": 3.0, "assoc_pos": 57.4, "assoc_neg": 6.1, "assoc_neu": 36.5, "leader_pos": 74.0, "leader_neg": 9.5, "leader_neu": 16.5, "assoc_summary": "The team scored an Overall Experience Score of 64 from 157 associates. The top strengths are a positive team culture, high morale, collaboration and teamwork. Resolving the top risk areas, including lack of recognition, Management Support Challenges, and career growth concerns, will directly improve outcomes like retention and career growth.", "leader_summary": "Across 35 leaders, the team achieved an overall score of 67, reflecting a foundation built on positive culture, inclusion, and strong collaboration. To sustain this momentum, targeted attention is needed on growth opportunities, communication effectiveness, and equitable career progression — areas that directly influence retention and long-term engagement.", "exco_summary": "The executive team recognizes that the organization is evolving, with opportunities for innovation and growth, supported by a stable and collaborative work environment. However, they highlight key gaps around clarity of purpose and mission, alignment of functional objectives with the strategic vision, and effectiveness of cross-functional collaboration. Notably, their perspectives on organizational direction and leadership are more nuanced than those of the broader leadership group, reflecting a balanced view of the organization’s strengths and areas for improvement, with some expressing strong alignment and others reporting occasional uncertainty around priorities.", "ai_exec_summary": "The overall gap between associate and leader scores is 3.0%, with associates scoring 64.0 and leaders scoring 67.0. The highest priority gaps are in Communication & Transparency and Leadership Trust & Effectiveness, with significant disparities. To mitigate business risk, Exaze leadership must urgently address these gaps to improve overall performance and trust.", "tl": "green"}, "pillars": [{"name": "Communication & Transparency", "assoc_cat": "", "leader_cat": "", "score_source": "Question Sentiment", "assoc_score": 50.0, "leader_score": 67.1, "gap": 17.1, "abs_gap": 17.1, "tl": "orange", "direction": "Leaders more optimistic", "business_risk": "Alignment & Trust Risk", "assoc_band": "Fair", "leader_band": "Good", "assoc_pos": 0.0, "assoc_neg": 0.0, "assoc_neu": 100.0, "leader_pos": 53.3, "leader_neg": 19.1, "leader_neu": 27.6, "assoc_count": "292", "leader_count": "105", "ai_direction": "Leaders overestimate", "ai_key_tension": "The sharpest tension lies in the fact that leaders believe they have clear visibility into key drivers of attrition, while associates do not provide any positive or negative responses regarding leadership's actions to deepen trust and ensure transparency, indicating a lack of awareness or understanding of leadership's efforts.", "ai": {"gap_narrative": "Leaders overestimate overall direction, while associates lack clear sentiment. Leaders believe they have visibility into attrition drivers, but associates don't confirm this.", "root_cause": "The key tension lies in leaders' perceived visibility into attrition drivers, which associates don't acknowledge.", "business_impact": "Unaddressed, this gap may lead to increased attrition.", "recommended_action": "Conduct regular pulse checks to align leader and associate perceptions."}, "assoc_narr": {}, "leader_narr": {}, "assoc_questions": [{"mapped_q": "What specific actions can leadership take to deepen trust and ensure transparent communication?", "matched_q": "What specific actions can leadership take to deepen trust and ensure transparent communication throughout organisation?", "count": "147", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}, {"mapped_q": "If you could share one message to leadership to improve your experience at Exaze, what would it be?", "matched_q": "If you could share one message to leadership to improve your experience at organisation, what would it be?", "count": "145", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}], "leader_questions": [{"mapped_q": "Do you agree that leadership has clear visibility into the key drivers of attrition?", "matched_q": "Do you agree that Leadership has clear visibility into the key drivers of attrition?", "count": "35", "pos": 65.7, "neg": 11.4, "neu": 22.9, "sent_score": 77.2}, {"mapped_q": "Do you agree that insights from exit and stay interviews are actively used to shape retention strategies?", "matched_q": "Do you agree that Insights from exit and stay interviews are actively used to shape retention strategies?", "count": "35", "pos": 45.7, "neg": 22.9, "neu": 31.4, "sent_score": 61.4}, {"mapped_q": "Do you agree that early indicators of disengagement are proactively detected and acted upon?", "matched_q": "Do you agree that Early indicators of disengagement are proactively detected and acted upon?", "count": "35", "pos": 48.6, "neg": 22.9, "neu": 28.6, "sent_score": 62.8}]}, {"name": "Leadership Trust & Effectiveness", "assoc_cat": "Leadership & Trust", "leader_cat": "Leadership & Trust", "score_source": "Effectiveness Sheet", "assoc_score": 59.9, "leader_score": 75.2, "gap": 15.3, "abs_gap": 15.3, "tl": "orange", "direction": "Leaders more optimistic", "business_risk": "Leadership Credibility Risk", "assoc_band": "Fair", "leader_band": "Good", "assoc_pos": 48.6, "assoc_neg": 6.7, "assoc_neu": 44.7, "leader_pos": 84.7, "leader_neg": 6.9, "leader_neu": 8.4, "assoc_count": "1854", "leader_count": "509", "ai_direction": "Leaders overestimate", "ai_key_tension": "The key tension lies in the fact that while leaders report taking actions to strengthen trust and demonstrate mutual respect, associates do not provide specific examples or sentiments about what inspires their confidence in leaders or what actions leadership can take to deepen trust.", "ai": {"gap_narrative": "Leaders overestimate overall direction, while associates lack specific examples of trust-inspiring actions. Associates feel comfortable sharing ideas, but recognition and empathy gaps exist.", "root_cause": "Associates do not provide specific examples of what inspires their confidence in leaders.", "business_impact": "Unaddressed, credibility risk may lead to disengagement.", "recommended_action": "Implement regular recognition programs."}, "assoc_narr": {"summary": "The survey highlights a strong foundation of approachable leadership, open communication, and supportive feedback. Associates generally feel comfortable sharing ideas and engaging with leaders. However, opportunities remain to strengthen trust through more meaningful recognition, empathetic performance conversations, and consistent developmental feedback that supports growth and engagement.", "strengths": "• Approachable leadership that fosters psychological safety and open dialogue (96 associates)\n• Constructive, growth-oriented feedback that motivates and guides associates (95 associates)\n• Empathetic and empowering leadership with clear guidance and well-being support (92 associates)", "pain": "• Recognition Gap: Associates feel contributions and achievements are not consistently recognized. (35 associates)\n• Empathy in Performance Discussions: Performance conversations are not always conducted with sufficient empathy and understanding. (28 associates)\n• Quality of Feedback: Feedback is not always constructive or focused on development. (22 associates)", "action": "• Strengthen Recognition: Implement regular and meaningful recognition programs to celebrate contributions and milestones.\n• Build Empathetic Leadership: Equip leaders with active listening and empathetic communication skills.\n• Enhance Feedback Practices: Adopt a structured feedback approach focused on growth, development, and continuous improvement."}, "leader_narr": {"summary": "Leaders demonstrate mutual respect, trust, and collaborative decision-making, while consistently emphasising that open communication remains a priority area for continued focus. While many leaders feel they are empowered to make decisions,a few leaders feel there is lack of transparency in decision making.", "strengths": "•Leaders empower team members to make decisions (34 leaders)\n•Transparency and accountability are highly valued (21 leaders)\n•Collaborative decision-making is encouraged (25 leaders)", "pain": "•\tLack of transparency in communication and decision-making (12 Leaders)\n•\tLimited display of empathy in leadership interactions(12 Leaders)\n•\tInconsistent accountability across teams(12 Leaders)", "action": "•\tDrive transparency through consistent communication and clarity in decision-making\n•\tStrengthen empathetic leadership through coaching, active listening, and inclusive engagement\n•\tStrengthen accountability by setting clear expectations and ownership across teams"}, "assoc_questions": [{"mapped_q": "What qualities or behaviors in a leader inspire your confidence?", "matched_q": "What qualities or behaviors in a leader inspire your confidence in their decisions?", "count": "472", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}, {"mapped_q": "To what extent do you agree that your lead is approachable and creates a safe and open environment where ideas and concerns can be shared freely?", "matched_q": "My lead is approachable and creates a safe and open environment where ideas and concerns can be shared freely.", "count": "157", "pos": 86.6, "neg": 13.4, "neu": 0.0, "sent_score": 86.6}, {"mapped_q": "To what extent do you agree that performance discussions with your lead are conducted with empathy and understanding of individual circumstances?", "matched_q": "Performance discussions are conducted with empathy and understanding of individual circumstances.", "count": "157", "pos": 82.2, "neg": 17.8, "neu": 0.0, "sent_score": 82.2}, {"mapped_q": "To what extent do you agree that your lead provides feedback that is constructive, respectful, and growth-oriented?", "matched_q": "My lead provides feedback that is constructive, respectful, and growth-oriented.", "count": "157", "pos": 86.0, "neg": 14.0, "neu": 0.0, "sent_score": 86.0}, {"mapped_q": "What specific actions can leadership take to deepen trust and ensure transparent communication?", "matched_q": "What specific actions can leadership take to deepen trust and ensure transparent communication throughout organisation?", "count": "147", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}, {"mapped_q": "If you could share one message to leadership to improve your experience at Exaze, what would it be?", "matched_q": "If you could share one message to leadership to improve your experience at organisation, what would it be?", "count": "145", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}], "leader_questions": [{"mapped_q": "Which actions have you taken to strengthen trust?", "matched_q": "Which of the following actions have you taken to strengthen trust in your team?", "count": "97", "pos": 99.0, "neg": 0.0, "neu": 1.0, "sent_score": 99.5}, {"mapped_q": "How effectively do you welcome diverse perspectives and handle differing opinions constructively?", "matched_q": "Do you agree that you welcome diverse perspectives and handle differing opinions constructively?", "count": "35", "pos": 100.0, "neg": 0.0, "neu": 0.0, "sent_score": 100.0}, {"mapped_q": "How effectively do you approach performance discussions with empathy and understanding of individual circumstances?", "matched_q": "Do you agree that you approach Performance discussions with empathy and understanding of individual circumstances?", "count": "35", "pos": 91.4, "neg": 2.9, "neu": 5.7, "sent_score": 94.2}, {"mapped_q": "How effectively do you demonstrate mutual respect and trust in your interactions with team members?", "matched_q": "Do you agree that you demonstrate mutual respect and trust in your interactions with team members?", "count": "35", "pos": 97.1, "neg": 2.9, "neu": 0.0, "sent_score": 97.1}, {"mapped_q": "What behaviors erode trust most quickly?", "matched_q": "(no match)", "count": "0", "pos": 0.0, "neg": 0.0, "neu": 0.0, "sent_score": 50.0}]}, {"name": "Associate Experience & Engagement", "assoc_cat": "", "leader_cat": "", "score_source": "Question Sentiment", "assoc_score": 91.2, "leader_score": 80.5, "gap": -10.7, "abs_gap": 10.7, "tl": "orange", "direction": "Associates more positive", "business_risk": "Engagement Risk", "assoc_band": "Good", "leader_band": "Good", "assoc_pos": 85.1, "assoc_neg": 2.8, "assoc_neu": 12.1, "leader_pos": 68.8, "leader_neg": 7.8, "leader_neu": 23.4, "assoc_count": "616", "leader_count": "141", "ai_direction": "Leaders underestimate", "ai_key_tension": "The leaders' lack of awareness of the associates' negative experiences with top-down decisions and the desire for more open discussions and consideration of team input creates a tension between the associates' desire for a more collaborative work environment and the leaders' perception of their own practices.", "ai": {"gap_narrative": "Associates are more positive about their energy and work environment than leaders. Leaders underestimate the team's overall direction and sentiment.", "root_cause": "Leaders' lack of awareness of associates' negative experiences with top-down decisions creates tension.", "business_impact": "Unaddressed, this gap may lead to decreased collaboration and morale.", "recommended_action": "Hold regular open discussions to consider team input."}, "assoc_narr": {}, "leader_narr": {}, "assoc_questions": [{"mapped_q": "Which phrase best captures your current energy and outlook at work?", "matched_q": "Which phrase best captures your current energy and outlook at work?", "count": "157", "pos": 94.3, "neg": 5.1, "neu": 0.6, "sent_score": 94.6}, {"mapped_q": "If our workplace were a playlist, which vibe best describes our work environment?", "matched_q": "If our workplace were a playlist, which vibe best describes our work environment? 🎵", "count": "157", "pos": 75.8, "neg": 1.3, "neu": 22.9, "sent_score": 87.2}, {"mapped_q": "If you could describe Exaze's culture in one word, what would it be?", "matched_q": "If you could describe organisation's culture in one word, what would it be?", "count": "153", "pos": 81.0, "neg": 2.0, "neu": 17.0, "sent_score": 89.5}, {"mapped_q": "What's one recent moment that made you feel proud of your team or organization?", "matched_q": "What’s one recent moment that made you feel proud of your team or organization?", "count": "149", "pos": 89.3, "neg": 2.7, "neu": 8.1, "sent_score": 93.3}], "leader_questions": [{"mapped_q": "In one sentence, how would you describe the \"energy\" of your team right now?", "matched_q": "In one sentence, how would you describe the “energy” of your team right now?", "count": "35", "pos": 57.1, "neg": 0.0, "neu": 42.9, "sent_score": 78.6}, {"mapped_q": "If our workplace were a playlist, which vibe best describes our work environment?", "matched_q": "(no match)", "count": "0", "pos": 0.0, "neg": 0.0, "neu": 0.0, "sent_score": 50.0}, {"mapped_q": "Overall, how would you describe your current experience at Exaze?", "matched_q": "Overall, how would you describe your current experience at Exaze?", "count": "35", "pos": 80.0, "neg": 2.9, "neu": 17.1, "sent_score": 88.6}, {"mapped_q": "What's one recent moment that made you feel proud of your team or organization?", "matched_q": "What’s one recent moment that made you feel proud of your team or organization?", "count": "35", "pos": 94.3, "neg": 0.0, "neu": 5.7, "sent_score": 97.2}, {"mapped_q": "If you could change one thing to make Exaze an even better place to work, what would it be?", "matched_q": "If you could change one thing to make Exaze an even better place to work, what would it be?", "count": "36", "pos": 44.4, "neg": 27.8, "neu": 27.8, "sent_score": 58.3}]}, {"name": "Retention & Sustainability", "assoc_cat": "Retention & Sustainability", "leader_cat": "Retention & Sustainability", "score_source": "Effectiveness Sheet", "assoc_score": 40.0, "leader_score": 50.3, "gap": 10.3, "abs_gap": 10.3, "tl": "orange", "direction": "Leaders more optimistic", "business_risk": "Attrition Risk", "assoc_band": "Needs Attention", "leader_band": "Fair", "assoc_pos": 0.0, "assoc_neg": 0.0, "assoc_neu": 100.0, "leader_pos": 48.6, "leader_neg": 22.9, "leader_neu": 28.5, "assoc_count": "297", "leader_count": "35", "ai_direction": "Leaders underestimate", "ai_key_tension": "The sharpest tension lies in the fact that associates do not express concerns about exploring new opportunities, yet leaders identify significant drivers of attrition, such as misalignment between role and career goals, indicating a potential disconnect between associate experiences and leader perceptions.", "ai": {"gap_narrative": "Leaders and associates have differing views on attrition risk, with leaders identifying significant drivers. Associates' neutral responses indicate a lack of clear concerns.", "root_cause": "A disconnect exists between leaders' and associates' perceptions of career goals alignment.", "business_impact": "Unaddressed attrition risk may lead to talent loss.", "recommended_action": "Conduct regular feedback sessions"}, "assoc_narr": {"summary": "", "strengths": "", "pain": "", "action": ""}, "leader_narr": {"summary": "Retention & Sustainability scores are a downstream consequence of root-cause issues, including Limited Growth Opportunities, Ineffective Communication & Transparency, and Inequitable Career Growth. Resolving these root causes will improve this category.", "strengths": "•Organizational structures support career growth (25 leaders)\n•Leadership has visibility into attrition drivers (23 leaders)\n•Retention initiatives are aligned with business priorities (21 leaders)", "pain": "• Misalignment between role and career goals (23 leaders)\n• Gaps in leadership support or communication (9 leaders)\n• Compensation and benefits (9 leaders)", "action": "•\tEnable better role–career alignment through clear growth paths and mobility opportunities\n•\tStrengthen leadership support through consistent communication and active team engagement\n•\tDrive competitive, equitable compensation aligned to role value and expectations"}, "assoc_questions": [{"mapped_q": "What factors might influence your decision to explore new opportunities outside the organization?", "matched_q": "What factors might influence your decision to explore new opportunities outside the organization?", "count": "297", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}], "leader_questions": [{"mapped_q": "Which of the following are the significant drivers of attrition at Exaze?", "matched_q": "Which of the following are the significant drivers of attrition at Exaze?", "count": "60", "pos": 0.0, "neg": 98.3, "neu": 1.7, "sent_score": 0.9}, {"mapped_q": "Do you agree that leadership has clear visibility into the key drivers of attrition?", "matched_q": "Do you agree that Leadership has clear visibility into the key drivers of attrition?", "count": "35", "pos": 65.7, "neg": 11.4, "neu": 22.9, "sent_score": 77.2}, {"mapped_q": "Do you agree that insights from exit and stay interviews are actively used to shape retention strategies?", "matched_q": "Do you agree that Insights from exit and stay interviews are actively used to shape retention strategies?", "count": "35", "pos": 45.7, "neg": 22.9, "neu": 31.4, "sent_score": 61.4}, {"mapped_q": "Do you agree that early indicators of disengagement are proactively detected and acted upon?", "matched_q": "Do you agree that Early indicators of disengagement are proactively detected and acted upon?", "count": "35", "pos": 48.6, "neg": 22.9, "neu": 28.6, "sent_score": 62.8}, {"mapped_q": "Do you agree that retention initiatives are aligned with business priorities and tailored to different associate segments?", "matched_q": "Do you agree that Retention initiatives are aligned with business priorities and tailored to different associate segments?", "count": "35", "pos": 60.0, "neg": 14.3, "neu": 25.7, "sent_score": 72.8}, {"mapped_q": "Do you agree that organizational structures and policies support both career growth and retention of critical talent?", "matched_q": "Do you agree that Organizational structures and policies support both career growth and retention of critical talent?", "count": "35", "pos": 71.4, "neg": 2.9, "neu": 25.7, "sent_score": 84.2}]}, {"name": "Recognition & Rewards", "assoc_cat": "", "leader_cat": "", "score_source": "Question Sentiment", "assoc_score": 78.3, "leader_score": 85.7, "gap": 7.4, "abs_gap": 7.4, "tl": "green", "direction": "Leaders more optimistic", "business_risk": "Motivation Risk", "assoc_band": "Good", "leader_band": "Good", "assoc_pos": 78.3, "assoc_neg": 21.7, "assoc_neu": 0.0, "leader_pos": 75.7, "leader_neg": 4.3, "leader_neu": 20.0, "assoc_count": "157", "leader_count": "70", "ai_direction": "Leaders overestimate", "ai_key_tension": "The key tension lies in the fact that while 21.7% of associates disagreed with the idea that career advancement and promotions at Exaze are fair, only 5.7% of leaders disagreed that leadership ensures promotions and growth decisions are fair and strategically driven, indicating a direct contradiction between associate experiences and leader self-assessments.", "ai": {"gap_narrative": "Leaders overestimate recognition and rewards, with a 7.4% higher score than associates. Associates expressed concerns about fairness in career advancement and promotions.", "root_cause": "The key tension lies in leaders' and associates' differing perceptions of fairness in promotions and growth decisions.", "business_impact": "Unaddressed, this gap may lead to decreased associate motivation and retention.", "recommended_action": "Conduct regular fairness audits of promotion decisions."}, "assoc_narr": {}, "leader_narr": {}, "assoc_questions": [{"mapped_q": "To what extent do you agree that career advancement and promotions at Exaze are based on demonstrated skills, readiness, and ability to take on the next role effectively?", "matched_q": "I believe career advancement and promotions are based on my demonstrated skills, readiness, and ability to take on the next role effectively.", "count": "157", "pos": 78.3, "neg": 21.7, "neu": 0.0, "sent_score": 78.3}], "leader_questions": [{"mapped_q": "How effectively does leadership ensure that promotions and growth decisions are fair and strategically driven?", "matched_q": "Do you agree that the Leadership ensures that promotions and growth decisions are fair and strategically driven?", "count": "35", "pos": 65.7, "neg": 5.7, "neu": 28.6, "sent_score": 80.0}, {"mapped_q": "Do you agree that we proactively build successors and future leaders?", "matched_q": "Do you agree that We proactively build successors and future leaders?", "count": "35", "pos": 85.7, "neg": 2.9, "neu": 11.4, "sent_score": 91.4}]}, {"name": "Culture, Inclusion & Wellbeing", "assoc_cat": "Culture & Belonging", "leader_cat": "Culture & Belonging", "score_source": "Effectiveness Sheet", "assoc_score": 67.7, "leader_score": 73.8, "gap": 6.1, "abs_gap": 6.1, "tl": "green", "direction": "Leaders more optimistic", "business_risk": "Burnout & Inclusion Risk", "assoc_band": "Good", "leader_band": "Good", "assoc_pos": 68.7, "assoc_neg": 3.8, "assoc_neu": 27.5, "leader_pos": 82.2, "leader_neg": 4.3, "leader_neu": 13.5, "assoc_count": "3179", "leader_count": "281", "ai_direction": "Leaders overestimate", "ai_key_tension": "The fact that 6.1% of associates reported feeling that there is limited openness from leadership to consider feedback directly contradicts leaders' reports of proactively seeking and valuing all perspectives.", "ai": {"gap_narrative": "Leaders overestimate openness, while associates report comfort in sharing ideas. However, 6.1% of associates feel leadership is not open to feedback.", "root_cause": "Leaders' reports of seeking diverse viewpoints contradict associates' feelings of limited openness.", "business_impact": "Unaddressed, this gap may lead to disengagement and turnover.", "recommended_action": "Regularly solicit and act on associate feedback."}, "assoc_narr": {"summary": "The Culture and Belonging Survey highlights a positive and collaborative team environment where associates feel motivated, supported, and aligned with the organization's values. Strong teamwork, supportive leadership, and cultural alignment contribute to a sense of stability and engagement. However, opportunities exist to strengthen inclusion by ensuring associates feel recognized for their contributions, empowered to take initiative, and connected to organizational decisions and initiatives.", "strengths": "• Strong alignment between personal values and organizational culture (120 associates)\n• Supportive leadership and peer relationship (120 associates)\n• Opportunities for collaboration and teamwork (90 associates)", "pain": "• Recognition Gap: Some associates do not feel their contributions are adequately recognized or valued. (44 associates)\n• Limited Empowerment: Associates feel there are fewer opportunities to take initiative beyond their core responsibilities. (24 associates)\n• Onboarding Experience: New associates do not always feel welcomed and included during their initial interactions with the team and leadership. (17 associates)", "action": "• Strengthen Recognition: Implement regular recognition and feedback mechanisms to celebrate contributions.\n• Encourage Ownership: Provide opportunities for associates to lead initiatives, take on stretch assignments, and contribute beyond their roles.\n• Enhance Onboarding: Create a structured onboarding experience that enhances connection, inclusion, and support from day one."}, "leader_narr": {"summary": "While the overall experience and sense of belonging remain strong, limited access to career advancement opportunities reveals a structural gap that could impact sustained engagement and retention.", "strengths": "•Leadership promotes a sense of connection among peers (29 leaders)\n•Organization supports employee growth and engagement (35 leaders)", "pain": "", "action": "• Enhance team connectedness to further strengthen belonging \n• Scope for more inclusive participation across discussions and decision-making\n• Continued focus on clarity and transparency in communication"}, "assoc_questions": [{"mapped_q": "How would you describe your comfortability in sharing ideas, opinions, or concerns at Exaze?", "matched_q": "How would you describe your comfortability in sharing ideas, opinions, or concerns at organisation?", "count": "148", "pos": 79.1, "neg": 6.1, "neu": 14.9, "sent_score": 86.5}, {"mapped_q": "The lead thoughtfully supports associates' well-being while providing clear guidance and encouragement to achieve team objectives.", "matched_q": "My lead thoughtfully supports associates’ well-being while providing clear guidance and encouragement to achieve team objectives.", "count": "157", "pos": 84.1, "neg": 3.2, "neu": 12.7, "sent_score": 90.4}], "leader_questions": [{"mapped_q": "In team meetings, how do you approach differing opinions?", "matched_q": "(no match)", "count": "0", "pos": 0.0, "neg": 0.0, "neu": 0.0, "sent_score": 50.0}, {"mapped_q": "How do you handle mistakes or risks raised by the team?", "matched_q": "How do you handle mistakes or risks raised by the team?", "count": "62", "pos": 82.3, "neg": 1.6, "neu": 16.1, "sent_score": 90.4}, {"mapped_q": "How would you describe your approach to seeking diverse viewpoints?", "matched_q": "How would you describe your approach to seeking and listening to diverse viewpoints within your team?", "count": "35", "pos": 94.3, "neg": 0.0, "neu": 5.7, "sent_score": 97.2}, {"mapped_q": "What initiatives could you adopt to strengthen belonging and inclusion?", "matched_q": "(no match)", "count": "0", "pos": 0.0, "neg": 0.0, "neu": 0.0, "sent_score": 50.0}]}, {"name": "Career Growth & Development", "assoc_cat": "Career & Growth", "leader_cat": "Career & Growth", "score_source": "Effectiveness Sheet", "assoc_score": 63.8, "leader_score": 63.1, "gap": -0.7, "abs_gap": 0.7, "tl": "green", "direction": "Associates more positive", "business_risk": "Talent Retention Risk", "assoc_band": "Fair", "leader_band": "Fair", "assoc_pos": 56.5, "assoc_neg": 9.0, "assoc_neu": 34.5, "leader_pos": 55.8, "leader_neg": 17.6, "leader_neu": 26.6, "assoc_count": "2723", "leader_count": "346", "ai_direction": "Leaders underestimate", "ai_key_tension": "The sharpest tension lies in the fact that while 78.3% of associates view their career development as structured and clearly defined, only 17.1% of leaders believe career progression is clearly defined and well-communicated, indicating a significant discrepancy in their views on this aspect.", "ai": {"gap_narrative": "Associates view career development as structured, but leaders see it as unclear. Leaders underestimate career progression clarity.", "root_cause": "Leaders and associates have differing views on career progression clarity.", "business_impact": "Talent retention risk increases if unclear progression persists.", "recommended_action": "Clarify promotion paths"}, "assoc_narr": {"summary": "The Career Growth and Development survey reflects a mixed experience among associates. While many value the available learning opportunities, mentorship, and exposure to challenging work, concerns remain around career progression, promotion transparency, and access to development resources. Strengthening career visibility and development support will help improve engagement and growth satisfaction.", "strengths": "• Training and learning opportunities(51 associates)\n• Mentorship and guidance from team members(51 associates)\n• Exposure to challenging and meaningful projects(51 associates)", "pain": "• Career Progression Challenges: Associates face barriers that impact their growth within the organization. (40 associates)\n• Lack of Career Clarity: Advancement and promotion paths are not always clear or transparent. (34 associates)\n• Limited Learning Resources: Some associates are dissatisfied with the availability of learning and development resources. (12 associates)", "action": "• Strengthen Career Conversations: Provide regular feedback and development-focused performance reviews.\n• Improve Career Visibility: Define and communicate clear career progression and promotion pathways.\n• Expand Learning Support: Increase access to learning resources, training programs, and skill-development opportunities."}, "leader_narr": {"summary": "While the team recognises and appreciates career growth opportunities, a significant number of leaders point to gaps that still need to be addressed", "strengths": "•Promotions and growth opportunities are handled fairly and transparently. (23 leaders).\n•Learning goals are embedded in performance reviews (11 leaders).\n•Skill development is recognized and rewarded (11 leaders)", "pain": "• Limited access to career advancement opportunities (15 leaders)\n• Lack of structure and clarity in career progression pathways  (9 leaders)\n• Inconsistent visibility of development programs (9 leaders)", "action": "•\tEnable transparent career progression by linking learning to advancement\n•\tBuild capability through structured learning, mentorship, and embedding learning goals into performance reviews\n•\tDrive alignment with business priorities through cross-functional exposure and recognition of skill development"}, "assoc_questions": [{"mapped_q": "Which of the following best represents your view of current career development at Exaze?", "matched_q": "Which of the following best represents your view of current career development at organisation?", "count": "157", "pos": 78.3, "neg": 21.7, "neu": 0.0, "sent_score": 78.3}, {"mapped_q": "What changes or programs could help strengthen career growth and mobility within Exaze?", "matched_q": "What changes or programs could help strengthen career growth and mobility within organisation?", "count": "144", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}, {"mapped_q": "Please describe the challenges you have faced that have impacted your career progression.", "matched_q": "Please describe the challenges you have faced that have impacted your career progression", "count": "38", "pos": 0.0, "neg": 63.2, "neu": 36.8, "sent_score": 18.4}, {"mapped_q": "To what extent do you agree that you have the opportunity to pursue meaningful career growth and internal mobility within Exaze?", "matched_q": "I have the opportunity to pursue meaningful career growth and internal mobility within organisation.", "count": "157", "pos": 78.3, "neg": 3.8, "neu": 17.8, "sent_score": 87.2}, {"mapped_q": "If you were responsible for learning and development at Exaze, what new learning opportunities would you introduce that aren't currently available?", "matched_q": "If you were responsible for learning and development at organisation, what new learning opportunities would you introduce that aren’t currently available?", "count": "355", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}, {"mapped_q": "What would make learning and development at Exaze more engaging, motivating, or relevant for you?", "matched_q": "What would make learning and development at organisation more engaging, motivating, or relevant for you?", "count": "145", "pos": 0.0, "neg": 0.0, "neu": 100.0, "sent_score": 50.0}, {"mapped_q": "How satisfied are you with the availability of training programs relevant to your role?", "matched_q": "How satisfied are you with the availability of training programs relevant to your role", "count": "157", "pos": 63.7, "neg": 4.5, "neu": 31.8, "sent_score": 79.6}, {"mapped_q": "To what extent do you agree that your professional goals are acknowledged and supported through discussions or formal development plans?", "matched_q": "My professional goals are acknowledged and supported through discussions or plans.", "count": "157", "pos": 81.5, "neg": 18.5, "neu": 0.0, "sent_score": 81.5}], "leader_questions": [{"mapped_q": "Which of the following best describes your view on associate's current career progression?", "matched_q": "Which of the following best describes your view on associate’s current career progression?", "count": "35", "pos": 17.1, "neg": 74.3, "neu": 8.6, "sent_score": 21.4}, {"mapped_q": "What do you believe should have the greatest influence on career progression at Exaze?", "matched_q": "What do you believe should have the greatest influence on career progression at Exaze?", "count": "35", "pos": 2.9, "neg": 0.0, "neu": 97.1, "sent_score": 51.4}, {"mapped_q": "How effectively does internal mobility support both associate career aspirations and business continuity?", "matched_q": "How successful is the Internal mobility to support both associate aspirations and business continuity?", "count": "35", "pos": 45.7, "neg": 31.4, "neu": 22.9, "sent_score": 57.2}, {"mapped_q": "If you had a blank slate, what new learning opportunities would you introduce that are currently missing?", "matched_q": "If you had a blank slate, what new learning opportunities would you introduce that are currently missing?", "count": "37", "pos": 59.5, "neg": 2.7, "neu": 37.8, "sent_score": 78.4}, {"mapped_q": "What approaches do you find most effective in promoting continuous learning within your teams?", "matched_q": "What approaches do you find most effective in promoting continuous learning within your teams?", "count": "99", "pos": 100.0, "neg": 0.0, "neu": 0.0, "sent_score": 100.0}, {"mapped_q": "How effectively are development programs designed to build capabilities that align with business goals?", "matched_q": "How successful are the Development programs designed to build capabilities that align with business goals?", "count": "35", "pos": 31.4, "neg": 31.4, "neu": 37.1, "sent_score": 50.0}, {"mapped_q": "How effectively do associate development plans balance personal growth aspirations with organizational priorities?", "matched_q": "(no match)", "count": "0", "pos": 0.0, "neg": 0.0, "neu": 0.0, "sent_score": 50.0}]}], "kpis": [{"group": "Overall", "assoc_kpi": "Overall Experience Score", "assoc_val": "64.0", "leader_kpi": "Overall Experience Score", "leader_val": "67.0", "notes": "Mean of scored categories"}, {"group": "Culture & Belonging", "assoc_kpi": "Belonging Index", "assoc_val": "67.7", "leader_kpi": "Belonging Index", "leader_val": "73.8", "notes": "Both map to Culture & Belonging"}, {"group": "Leadership & Trust", "assoc_kpi": "Leadership Effectiveness Index", "assoc_val": "59.9", "leader_kpi": "Team Energy Sentiment", "leader_val": "75.2", "notes": "Associates measure trust; leaders measure team energy"}, {"group": "Career & Growth", "assoc_kpi": "Career Growth Index", "assoc_val": "63.8", "leader_kpi": "Career Equity Index", "leader_val": "63.1", "notes": "Associates measure opportunity; leaders measure equity"}, {"group": "Retention", "assoc_kpi": "Retention Risk Indicator", "assoc_val": "", "leader_kpi": "Retention Effectiveness Index", "leader_val": "50.3", "notes": "Associates flag risk; leaders flag effectiveness"}, {"group": "Strategy (Leaders only)", "assoc_kpi": "", "assoc_val": "", "leader_kpi": "Strategy Alignment Index", "leader_val": "72.1", "notes": "No associate equivalent"}], "actions": [{"band": "Now", "theme": "Leadership Listening Loops", "action": "Regular Pulse Checks", "just": "The 17.1% gap in Communication & Transparency raises questions about leader awareness of associate concerns.", "pillar": "Communication & Transparency", "gap": 17.1}, {"band": "Now", "theme": "Trust Builders", "action": "Recognize Associate Efforts", "just": "The 15.3% gap in Leadership Trust & Effectiveness highlights leaders' overestimation of trust-building actions.", "pillar": "Leadership Trust & Effectiveness", "gap": 15.3}, {"band": "Now", "theme": "Open Decision Making", "action": "Solicit Team Input", "just": "The -10.7% gap in Associate Experience & Engagement indicates leaders' lack of awareness of associates' negative experiences with top-down decisions.", "pillar": "Associate Experience & Engagement", "gap": -10.7}, {"band": "Next", "theme": "Feedback Loops", "action": "Regular Feedback Sessions", "just": "The 10.3% gap in Retention & Sustainability raises concerns about leaders' understanding of attrition drivers.", "pillar": "Retention & Sustainability", "gap": 10.3}, {"band": "Next", "theme": "Fairness Audits", "action": "Conduct Fairness Audits", "just": "The 7.4% gap in Recognition & Rewards highlights leaders' overestimation of fairness in promotion decisions.", "pillar": "Recognition & Rewards", "gap": 7.4}, {"band": "Next", "theme": "Growth Mindset", "action": "Clarify Promotion Paths", "just": "The -0.7% gap in Career Growth & Development suggests leaders underestimate the importance of clear career progression.", "pillar": "Career Growth & Development", "gap": -0.7}, {"band": "Later", "theme": "Inclusive Culture", "action": "Solicit Associate Feedback", "just": "The 6.1% gap in Culture, Inclusion & Wellbeing indicates leaders' overestimation of openness to feedback.", "pillar": "Culture, Inclusion & Wellbeing", "gap": 6.1}]} with
+   real JSON. If you see an error page it means you opened the skeleton
+   directly — run the embed script first and open the OUTPUT html instead.
+   ═══════════════════════════════════════════════════════════════════════════ */
+let GAP_DATA;
+(function loadData(){
+  const raw = (document.getElementById('gap-data-raw')||{}).textContent||'';
+  if(raw.trim().startsWith('%')||raw.trim()===''){
+    // Placeholder was never replaced — show setup instructions
+    document.body.style.cssText='background:#0d0f14;display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui,-apple-system,sans-serif;';
+    document.body.innerHTML=`
+      <div style="text-align:center;color:#e8eaf0;max-width:520px;padding:40px;">
+        <div style="font-size:52px;margin-bottom:16px;">⚠️</div>
+        <h2 style="color:#4f7cff;margin-bottom:10px;font-size:20px;">Data Not Embedded</h2>
+        <p style="color:#b0bac8;line-height:1.7;margin-bottom:24px;font-size:13px;">
+          This is the dashboard <strong style="color:#e8eaf0">skeleton template</strong> — it has no data until the embed script runs.<br>
+          You need to open the <strong style="color:#34d399">Gap_Dashboard_TIMESTAMP.html</strong> file that the embed script generates, not this skeleton.
+        </p>
+        <div style="background:#1c2030;border:1px solid #252a3a;border-radius:10px;padding:18px;text-align:left;font-family:monospace;font-size:12px;color:#34d399;line-height:2;">
+          <span style="color:#b0bac8"># Step 1 — generate the Gap Excel</span><br>
+          python gap_analysis_excel.py<br><br>
+          <span style="color:#b0bac8"># Step 2 — embed data into HTML</span><br>
+          python embed_gap_data.py<br>
+          &nbsp;&nbsp;--gap-excel "Gap_Analysis_TIMESTAMP.xlsx"<br>
+          &nbsp;&nbsp;--skeleton "gap_dashboard_skeleton.html"<br><br>
+          <span style="color:#b0bac8"># Step 3 — open THIS file in your browser</span><br>
+          Gap_Dashboard_TIMESTAMP.html
+        </div>
+        <p style="color:#b0bac8;font-size:11px;margin-top:18px;">Check the browser console (F12) for details if the embed script ran but data still isn't showing.</p>
+      </div>`;
+    return;
+  }
+  try{
+    GAP_DATA = JSON.parse(raw);
+  } catch(e){
+    document.body.style.cssText='background:#0d0f14;display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui,sans-serif;';
+    document.body.innerHTML=`
+      <div style="text-align:center;color:#e8eaf0;max-width:480px;padding:40px;">
+        <div style="font-size:52px;margin-bottom:16px;">❌</div>
+        <h2 style="color:#ff6b6b;margin-bottom:10px;">JSON Parse Error</h2>
+        <p style="color:#b0bac8;line-height:1.7;font-size:13px;">The embedded data could not be parsed. Re-run the embed script to regenerate the dashboard.</p>
+        <pre style="background:#1c2030;border:1px solid #252a3a;border-radius:8px;padding:14px;font-size:11px;color:#ff6b6b;text-align:left;overflow:auto;margin-top:16px;">${String(e)}</pre>
+      </div>`;
+  }
+})();
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const dv = (cls,tag='div') => { const el=document.createElement(tag); if(cls)el.className=cls; return el; };
+const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function tlColor(tl){
+  const t=(tl||'').toLowerCase();
+  return t==='red'?'var(--tl-red)':t==='orange'?'var(--tl-orange)':'var(--tl-green)';
+}
+function tlPill(tl){
+  const t=(tl||'').toLowerCase();
+  const cls=t==='red'?'pill pill-red':t==='orange'?'pill pill-orange':'pill pill-green';
+  const emoji=t==='red'?'🔴':t==='orange'?'🟠':'🟢';
+  const lbl=t==='red'?'Significant Gap':t==='orange'?'Moderate Gap':'Aligned';
+  return `<span class="${cls}">${emoji} ${lbl}</span>`;
+}
+function scoreBand(score){
+  if(score>=80)return{label:'Excellent',color:var_pos};
+  if(score>=65)return{label:'Good',color:'#60a5fa'};
+  if(score>=50)return{label:'Fair',color:var_acc4};
+  return{label:'Needs Attention',color:var_neg};
+}
+function scoreColor(score){
+  if(score>=80)return'var(--pos)';
+  if(score>=65)return'#60a5fa';
+  if(score>=50)return'var(--accent4)';
+  return'var(--neg)';
+}
+const var_pos='#34d399',var_neg='#ff6b6b',var_acc4='#fbbf24';
+function sentBar(pos,neg,neu){
+  const p=pos||0,n=neg||0,nu=neu||(100-p-n);
+  return`<div class="sentiment-bar">
+    <div class="sent-pos" style="width:${p}%"></div>
+    <div class="sent-neu" style="width:${nu}%"></div>
+    <div class="sent-neg" style="width:${n}%"></div>
+  </div>`;
+}
+function sentLegend(pos,neg,neu){
+  const p=pos||0,n=neg||0,nu=neu||(100-p-n);
+  return`<div class="sent-legend">
+    <div class="sent-leg-item"><div class="sent-leg-dot" style="background:var(--pos)"></div>${p.toFixed(1)}% Positive</div>
+    <div class="sent-leg-item"><div class="sent-leg-dot" style="background:var(--accent4)"></div>${nu.toFixed(1)}% Neutral</div>
+    <div class="sent-leg-item"><div class="sent-leg-dot" style="background:var(--neg)"></div>${n.toFixed(1)}% Negative</div>
+  </div>`;
+}
+function fmt(v){return(v==null||v===undefined)?'—':typeof v==='number'?v.toFixed(1):String(v);}
+function fmtScore(v){return(v==null||v===''||v==='N/A')?'—':parseFloat(v).toFixed(1);}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TAB NAVIGATION
+   ═══════════════════════════════════════════════════════════════════════════ */
+function showTab(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  $(id).classList.add('active');
+  if(btn)btn.classList.add('active');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HEADER BADGES
+   ═══════════════════════════════════════════════════════════════════════════ */
+function buildHeader(){
+  var overall = (GAP_DATA||{}).overall  || {};
+  var pillars = (GAP_DATA||{}).pillars  || [];
+  var meta    = (GAP_DATA||{}).meta     || {};
+  var as = overall.assoc_score;
+  var ls = overall.leader_score;
+  $('hb-assoc-val').textContent = as ? as.toFixed(1)+'/100' : '—';
+  $('hb-leader-val').textContent = ls ? ls.toFixed(1)+'/100' : '—';
+  var avgGap = pillars.length ? pillars.reduce(function(s,p){return s+(+(p.abs_gap||0));},0)/pillars.length : 0;
+  $('hb-gap-val').textContent = avgGap.toFixed(1)+'%';
+  $('hb-date').textContent = meta.generated||'';
+  var gapBadge=$('hb-gap');
+  gapBadge.classList.remove('green','orange','red');
+  gapBadge.classList.add(avgGap<10?'green':avgGap<20?'orange':'red');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PAGE 1 — EXECUTIVE OVERVIEW  (no template literals — plain string concat)
+   ═══════════════════════════════════════════════════════════════════════════ */
+function buildOverview(){
+  var overall = (GAP_DATA||{}).overall || {};
+  var pillars = (GAP_DATA||{}).pillars || [];
+  var meta    = (GAP_DATA||{}).meta    || {};
+
+  // Diagnostic banner — always set, hide only when real data found
+  var diag     = $('diag-banner');
+  var diagText = $('diag-text');
+  if(diagText){
+    diagText.textContent =
+      'GAP_DATA keys  : ' + Object.keys(GAP_DATA||{}).join(', ') + '\n'
+      + 'overall keys   : ' + Object.keys(overall).join(', ') + '\n'
+      + 'assoc_score    : ' + overall.assoc_score + '\n'
+      + 'leader_score   : ' + overall.leader_score + '\n'
+      + 'overall_gap    : ' + overall.overall_gap + '\n'
+      + 'pillars count  : ' + pillars.length + '\n'
+      + 'actions count  : ' + ((GAP_DATA||{}).actions||[]).length + '\n'
+      + 'kpis count     : ' + ((GAP_DATA||{}).kpis||[]).length + '\n'
+      + 'meta.generated : ' + (meta.generated||'—');
+  }
+  var hasData = overall.assoc_score && pillars.length > 0;
+  if(diag) diag.style.display = hasData ? 'none' : '';
+
+  var gap = +(overall.overall_gap||0);
+
+  $('ov-sub').textContent = 'Associates surveyed: '+(meta.associates_surveyed||'—')
+    +'  ·  Leaders surveyed: '+(meta.leaders_surveyed||'—')+'  ·  '+(meta.generated||'');
+
+  // Stat tiles
+  $('ov-tiles').innerHTML =
+    '<div class="stat-tile" style="background:linear-gradient(135deg,#1a1f2e,#111827)">'
+    +'<div class="stat-tile-label">&#128101; Associate Score</div>'
+    +'<div class="stat-tile-val" style="color:'+scoreColor(+(overall.assoc_score||0))+'">'+fmt(overall.assoc_score)+'</div>'
+    +'<div class="stat-tile-sub">Overall Experience Score / 100</div></div>'
+    +'<div class="stat-tile" style="background:linear-gradient(135deg,#1a1f2e,#111827)">'
+    +'<div class="stat-tile-label">&#128084; Leader Score</div>'
+    +'<div class="stat-tile-val" style="color:'+scoreColor(+(overall.leader_score||0))+'">'+fmt(overall.leader_score)+'</div>'
+    +'<div class="stat-tile-sub">Overall Experience Score / 100</div></div>'
+    +'<div class="stat-tile" style="background:linear-gradient(135deg,#1a1f2e,#111827)">'
+    +'<div class="stat-tile-label">Perception Gap</div>'
+    +'<div class="stat-tile-val" style="color:'+tlColor(overall.tl||'orange')+'">'+( gap>0?'+':'')+fmt(gap)+'%</div>'
+    +'<div class="stat-tile-sub">'+tlPill(overall.tl||'orange')+'</div></div>';
+
+  // Exec summaries
+  var sums = $('ov-summaries');
+  sums.innerHTML = '';
+  var sumList = [
+    {label:'&#128101; Associate Survey Summary', text: overall.assoc_summary},
+    {label:'&#128084; Leader Survey Summary',    text: overall.leader_summary}
+  ];
+  sumList.forEach(function(item){
+    if(!item.text) return;
+    var b = dv('exec-box');
+    b.innerHTML = '<div class="exec-box-label">'+item.label+'</div>'
+      +'<div class="exec-box-text">'+esc(item.text)+'</div>';
+    sums.appendChild(b);
+  });
+  if(overall.exco_summary){
+    var eb = dv('exec-box');
+    eb.style.gridColumn='1/-1';
+    eb.innerHTML='<div class="exec-box-label">&#128081; Exco View</div>'
+      +'<div class="exec-box-text">'+esc(overall.exco_summary)+'</div>';
+    sums.appendChild(eb);
+  }
+
+  // AI exec summary
+  if(overall.ai_exec_summary){
+    $('ai-exec-box').style.display='';
+    $('ai-exec-text').textContent = overall.ai_exec_summary;
+  }
+
+  // Sentiment bars
+  $('assoc-sent-bar').innerHTML    = sentBar(overall.assoc_pos,overall.assoc_neg,overall.assoc_neu);
+  $('assoc-sent-legend').innerHTML = sentLegend(overall.assoc_pos,overall.assoc_neg,overall.assoc_neu);
+  $('leader-sent-bar').innerHTML   = sentBar(overall.leader_pos,overall.leader_neg,overall.leader_neu);
+  $('leader-sent-legend').innerHTML= sentLegend(overall.leader_pos,overall.leader_neg,overall.leader_neu);
+
+  // Traffic light table
+  var tb = $('tl-tbody');
+  tb.innerHTML = '';
+  pillars.forEach(function(p){
+    var c = tlColor(p.tl);
+    var g = +(p.gap||0);
+    tb.innerHTML += '<tr>'
+      +'<td><strong>'+esc(p.name||'')+'</strong></td>'
+      +'<td style="text-align:center">'+tlPill(p.tl)+'</td>'
+      +'<td style="text-align:right;font-weight:700;color:#60a5fa">'+fmt(p.leader_score)+'</td>'
+      +'<td style="text-align:right;font-weight:700;color:var(--accent5)">'+fmt(p.assoc_score)+'</td>'
+      +'<td style="text-align:right;font-weight:800;color:'+c+'">'+(g>0?'+':'')+fmt(g)+'%</td>'
+      +'<td style="font-size:11px;color:var(--muted)">'+esc(p.direction||'')+'</td>'
+      +'<td><span class="risk-tag">'+esc(p.business_risk||'')+'</span></td>'
+      +'</tr>';
+  });
+
+  // Gap Impact & Business Risk table
+  var rb = $('risk-tbody');
+  rb.innerHTML = '';
+  pillars.forEach(function(p){
+    var narrative = (p.ai&&p.ai.gap_narrative)||p.narrative||'';
+    rb.innerHTML += '<tr>'
+      +'<td><strong>'+esc(p.name||'')+'</strong></td>'
+      +'<td style="font-size:11px;color:var(--muted)">'+esc(narrative)+'</td>'
+      +'<td><span class="risk-tag">'+esc(p.business_risk||'')+'</span></td>'
+      +'<td style="text-align:center">'+tlPill(p.tl)+'</td>'
+      +'</tr>';
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PAGE 2 — PILLAR ANALYSIS
+   All helpers are standalone functions to avoid nested template literal bugs
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function renderSentBar(pos,neg,neu){
+  var p=+(pos||0),n=+(neg||0),u=+(neu!=null?neu:(100-p-n));
+  return '<div class="sentiment-bar">'
+    +'<div class="sent-pos" style="width:'+p+'%"></div>'
+    +'<div class="sent-neu" style="width:'+u+'%"></div>'
+    +'<div class="sent-neg" style="width:'+n+'%"></div>'
+    +'</div>';
+}
+function renderSentLegend(pos,neg,neu){
+  var p=+(pos||0),n=+(neg||0),u=+(neu!=null?neu:(100-p-n));
+  return '<div class="sent-legend">'
+    +'<div class="sent-leg-item"><div class="sent-leg-dot" style="background:var(--pos)"></div>'+p.toFixed(1)+'% Positive</div>'
+    +'<div class="sent-leg-item"><div class="sent-leg-dot" style="background:var(--accent4)"></div>'+u.toFixed(1)+'% Neutral</div>'
+    +'<div class="sent-leg-item"><div class="sent-leg-dot" style="background:var(--neg)"></div>'+n.toFixed(1)+'% Negative</div>'
+    +'</div>';
+}
+function dirColor(d){
+  var dl=(d||'').toLowerCase();
+  if(dl.indexOf('overestimate')>-1)  return '#fbbf24';
+  if(dl.indexOf('underestimate')>-1) return '#a78bfa';
+  if(dl.indexOf('insufficient')>-1)  return '#94a3b8';
+  return '#34d399';
+}
+function renderQRow(q){
+  var noMatch=!q.matched_q||q.matched_q==='(no match)';
+  var hasData=!noMatch&&q.count&&parseInt(q.count)>0;
+  var html='<div class="qd-q-row">';
+  html+='<div class="qd-q-text">'+esc(q.mapped_q||'')+'</div>';
+  if(noMatch) html+='<div class="qd-q-no-match">⚠ No match in survey data</div>';
+  if(hasData) html+='<div style="font-size:9px;color:var(--muted);margin-bottom:4px;">n='+String(q.count||0)+'</div>';
+  if(hasData) html+=renderSentBar(q.pos,q.neg,q.neu)+renderSentLegend(q.pos,q.neg,q.neu);
+  if(!hasData&&!noMatch) html+='<div style="font-size:10px;color:var(--muted);font-style:italic">No responses matched</div>';
+  html+='</div>';
+  return html;
+}
+function renderQSection(p){
+  var aqs=p.assoc_questions||[];
+  var lqs=p.leader_questions||[];
+  if(!aqs.length&&!lqs.length) return '';
+  var html='<div class="section-label" style="margin-top:14px;">&#128279; Question-Level Correlation</div>';
+  if(p.ai_direction||p.ai_key_tension){
+    var dc=dirColor(p.ai_direction);
+    html+='<div style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:12px;margin-bottom:10px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;">';
+    if(p.ai_direction) html+='<span class="dir-badge" style="background:rgba(251,191,36,.15);color:'+dc+';border:1px solid rgba(251,191,36,.3)">'+esc(p.ai_direction)+'</span>';
+    if(p.ai_key_tension) html+='<div style="font-size:12px;color:var(--text);flex:1;line-height:1.6">&#9889; '+esc(p.ai_key_tension)+'</div>';
+    html+='</div>';
+  }
+  html+='<div class="qd-cols"><div>';
+  html+='<div class="qd-col-head" style="background:rgba(167,139,250,.1);color:var(--accent5);">&#128101; ASSOCIATE QUESTIONS ('+aqs.length+')</div>';
+  if(aqs.length){ aqs.forEach(function(q){html+=renderQRow(q);}); }
+  else html+='<div class="qd-q-row"><div class="qd-q-text" style="color:var(--muted)">No associate questions</div></div>';
+  html+='</div><div>';
+  html+='<div class="qd-col-head" style="background:rgba(96,165,250,.1);color:#60a5fa;">&#128084; LEADER QUESTIONS ('+lqs.length+')</div>';
+  if(lqs.length){ lqs.forEach(function(q){html+=renderQRow(q);}); }
+  else html+='<div class="qd-q-row"><div class="qd-q-text" style="color:var(--muted)">No leader questions</div></div>';
+  html+='</div></div>';
+  return html;
+}
+function renderAIPanel(p){
+  var ai=p.ai||{};
+  if(!ai.gap_narrative&&!ai.root_cause) return '';
+  var html='<div class="section-label" style="margin-top:12px;color:var(--accent4);">&#129302; AI Gap Insight</div>';
+  html+='<div style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;">';
+  if(ai.gap_narrative)     html+='<div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent4);margin-bottom:5px;">Gap Narrative</div><div style="font-size:12px;color:var(--text);line-height:1.6">'+esc(ai.gap_narrative)+'</div></div>';
+  if(ai.root_cause)        html+='<div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--neg);margin-bottom:5px;">Root Cause</div><div style="font-size:12px;color:var(--text);line-height:1.6">'+esc(ai.root_cause)+'</div></div>';
+  if(ai.business_impact)   html+='<div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent5);margin-bottom:5px;">Business Impact</div><div style="font-size:12px;color:var(--text);line-height:1.6">'+esc(ai.business_impact)+'</div></div>';
+  if(ai.recommended_action)html+='<div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--pos);margin-bottom:5px;">Recommended Action</div><div style="font-size:12px;color:var(--text);line-height:1.6">'+esc(ai.recommended_action)+'</div></div>';
+  html+='</div>';
+  return html;
+}
+function renderNarrPanel(p){
+  var an=p.assoc_narr||{};
+  var ln=p.leader_narr||{};
+  if(!an.summary&&!ln.summary) return '';
+  var html='<div class="section-label" style="margin-top:12px;">Category Narratives</div><div class="narr-grid">';
+  html+='<div class="narr-panel"><div class="narr-panel-title" style="color:var(--accent5);">&#128101; ASSOCIATE &#8212; '+esc(p.assoc_cat||'')+'</div>';
+  if(an.summary) html+='<div class="narr-section"><div class="narr-section-label">Summary</div><div class="narr-section-text">'+esc(an.summary)+'</div></div>';
+  if(an.pain)    html+='<div class="narr-section"><div class="narr-section-label">Pain Points</div><div class="narr-section-text pain">'+esc(an.pain)+'</div></div>';
+  if(an.action)  html+='<div class="narr-section"><div class="narr-section-label">Actions</div><div class="narr-section-text action">'+esc(an.action)+'</div></div>';
+  html+='</div>';
+  html+='<div class="narr-panel"><div class="narr-panel-title" style="color:#60a5fa;">&#128084; LEADER &#8212; '+esc(p.leader_cat||'')+'</div>';
+  if(ln.summary) html+='<div class="narr-section"><div class="narr-section-label">Summary</div><div class="narr-section-text">'+esc(ln.summary)+'</div></div>';
+  if(ln.pain)    html+='<div class="narr-section"><div class="narr-section-label">Pain Points</div><div class="narr-section-text pain">'+esc(ln.pain)+'</div></div>';
+  if(ln.action)  html+='<div class="narr-section"><div class="narr-section-label">Actions</div><div class="narr-section-text action">'+esc(ln.action)+'</div></div>';
+  html+='</div></div>';
+  return html;
+}
+
+function buildPillars(){
+  var wrap=$('pillar-cards');
+  wrap.innerHTML='';
+  var pillars=GAP_DATA.pillars;
+  if(!pillars||!pillars.length){
+    wrap.innerHTML='<div class="no-data">No pillar data found. Check that the Pillar Gaps sheet has rows.</div>';
+    return;
+  }
+  pillars.forEach(function(p){
+    var c     =tlColor(p.tl);
+    var gap   =+(p.gap||0);
+    var gapStr=(gap>0?'+':'')+fmt(gap)+'%';
+    var lS    =+(p.leader_score||0);
+    var aS    =+(p.assoc_score||0);
+
+    var card=dv('pillar-card');
+    card.dataset.tl=p.tl||'';
+    card.style.borderLeft='4px solid '+c;
+
+    var h='';
+    h+='<div class="pillar-card-head"><div>';
+    h+='<div class="pillar-name">'+esc(p.name||'')+'</div>';
+    h+='<div class="pillar-risk"><span class="risk-tag">'+esc(p.business_risk||'')+'</span></div>';
+    h+='</div>'+tlPill(p.tl)+'</div>';
+
+    h+='<div class="score-compare">';
+    h+='<div class="score-box">';
+    h+='<div class="score-box-label" style="color:#60a5fa;">&#128084; LEADER PERCEPTION</div>';
+    h+='<div class="score-box-val" style="color:#60a5fa;">'+fmt(lS)+'</div>';
+    h+='<div class="score-box-band" style="color:#60a5fa;">'+esc(p.leader_band||'')+'</div>';
+    h+='<div class="score-box-track"><div class="score-box-fill" style="width:'+lS+'%;background:#60a5fa"></div></div>';
+    h+='<div style="margin-top:8px;">'+renderSentBar(p.leader_pos,p.leader_neg,p.leader_neu)+renderSentLegend(p.leader_pos,p.leader_neg,p.leader_neu)+'</div>';
+    h+='</div>';
+    h+='<div class="score-box">';
+    h+='<div class="score-box-label" style="color:var(--accent5);">&#128101; ASSOCIATE EXPERIENCE</div>';
+    h+='<div class="score-box-val" style="color:var(--accent5);">'+fmt(aS)+'</div>';
+    h+='<div class="score-box-band" style="color:var(--accent5);">'+esc(p.assoc_band||'')+'</div>';
+    h+='<div class="score-box-track"><div class="score-box-fill" style="width:'+aS+'%;background:var(--accent5)"></div></div>';
+    h+='<div style="margin-top:8px;">'+renderSentBar(p.assoc_pos,p.assoc_neg,p.assoc_neu)+renderSentLegend(p.assoc_pos,p.assoc_neg,p.assoc_neu)+'</div>';
+    h+='</div>';
+    h+='<div class="gap-box" style="border-color:'+c+';">';
+    h+='<div class="gap-box-label">PERCEPTION GAP</div>';
+    h+='<div class="gap-box-val" style="color:'+c+';">'+gapStr+'</div>';
+    h+='<div class="gap-box-tl" style="color:'+c+';">'+(p.tl==='red'?'Significant':p.tl==='orange'?'Moderate':'Aligned')+'</div>';
+    h+='</div></div>';
+
+    h+=renderAIPanel(p);
+    h+=renderQSection(p);
+    h+='<div style="font-size:11px;color:var(--muted);margin-top:6px;">Associates: '+esc(String(p.assoc_count||'N/A'))+' &nbsp;&#183;&nbsp; Leaders: '+esc(String(p.leader_count||'N/A'))+'</div>';
+    h+=renderNarrPanel(p);
+
+    card.innerHTML=h;
+    wrap.appendChild(card);
+  });
+}
+let _pfActive='all';
+function filterPillars(tl,btn){
+  _pfActive=tl;
+  document.querySelectorAll('#pillar-cards .pillar-card').forEach(c=>{
+    c.style.display=(tl==='all'||c.dataset.tl===tl)?'':'none';
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PAGE 3 — KPI MATRIX  (no template literals)
+   ═══════════════════════════════════════════════════════════════════════════ */
+function buildKPIs(){
+  var overall = (GAP_DATA||{}).overall || {};
+  var kpis    = (GAP_DATA||{}).kpis    || [];
+  var grid    = $('kpi-score-grid');
+  grid.innerHTML='';
+  var tiles = [
+    {label:'&#128101; Assoc Overall',  val:+(overall.assoc_score||0),  col:scoreColor(+(overall.assoc_score||0))},
+    {label:'&#128084; Leader Overall', val:+(overall.leader_score||0), col:scoreColor(+(overall.leader_score||0))},
+  ];
+  kpis.forEach(function(k){
+    if(k.assoc_val&&k.assoc_val!=='N/A') tiles.push({label:'A: '+k.assoc_kpi, val:parseFloat(k.assoc_val)||0, col:scoreColor(parseFloat(k.assoc_val)||0)});
+    if(k.leader_val&&k.leader_val!=='N/A') tiles.push({label:'L: '+k.leader_kpi, val:parseFloat(k.leader_val)||0, col:scoreColor(parseFloat(k.leader_val)||0)});
+  });
+  tiles.slice(0,8).forEach(function(t){
+    var el=dv('kpi-card');
+    el.innerHTML='<div class="kpi-label">'+esc(t.label)+'</div>'
+      +'<div class="kpi-score" style="color:'+t.col+'">'+fmtScore(t.val)+'</div>'
+      +'<div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:'+Math.min(t.val||0,100)+'%;background:'+t.col+'"></div></div>';
+    grid.appendChild(el);
+  });
+  var tb=$('kpi-tbody');
+  tb.innerHTML='';
+  kpis.forEach(function(k){
+    var av=parseFloat(k.assoc_val)||null;
+    var lv=parseFloat(k.leader_val)||null;
+    tb.innerHTML+='<tr>'
+      +'<td><strong style="color:var(--accent)">'+esc(k.group||'')+'</strong></td>'
+      +'<td style="font-size:11px;color:var(--muted)">'+esc(k.assoc_kpi||'')+'</td>'
+      +'<td style="text-align:right"><span class="kpi-val-cell" style="color:'+(av?scoreColor(av):'var(--muted)')+'">'+fmtScore(k.assoc_val)+'</span></td>'
+      +'<td style="font-size:11px;color:var(--muted)">'+esc(k.leader_kpi||'')+'</td>'
+      +'<td style="text-align:right"><span class="kpi-val-cell" style="color:'+(lv?scoreColor(lv):'var(--muted)')+'">'+fmtScore(k.leader_val)+'</span></td>'
+      +'<td style="font-size:11px;color:var(--muted)">'+esc(k.notes||'')+'</td>'
+      +'</tr>';
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PAGE 4 — PRIORITY ACTIONS  (no template literals)
+   ═══════════════════════════════════════════════════════════════════════════ */
+function buildActions(){
+  var wrap    = $('action-cards');
+  var actions = (GAP_DATA||{}).actions || [];
+  wrap.innerHTML='';
+  if(!actions.length){wrap.innerHTML='<div class="no-data">No action data available.</div>';return;}
+  ['Now','Next','Later'].forEach(function(band){
+    var list=actions.filter(function(a){return a.band===band;});
+    if(!list.length) return;
+    var lbl=band==='Now'?'&#128308; Now &#8212; Act Immediately':band==='Next'?'&#128992; Next &#8212; Plan & Build':'&#128994; Later &#8212; Sustain';
+    var divider=dv('section-label');
+    divider.innerHTML=lbl;
+    wrap.appendChild(divider);
+    list.forEach(function(a){
+      var pillCls=band==='Now'?'pill band-now':band==='Next'?'pill band-next':'pill band-later';
+      var gapTag=a.gap!=null&&a.pillar
+        ?'<span class="action-gap-tag" style="background:rgba(79,124,255,.1);color:var(--accent);border:1px solid rgba(79,124,255,.2)">&#128279; '+esc(a.pillar)+': '+(a.gap>0?'+':'')+a.gap+'% gap</span>'
+        :'';
+      var card=dv('action-card');
+      card.dataset.band=band;
+      var h='<div class="action-head"><span class="'+pillCls+'">'+band+'</span>'
+        +'<div class="action-theme">'+esc(a.theme||'')+'</div></div>'
+        +'<div class="action-text">'+esc(a.action||'')+'</div>'
+        +(a.just?'<div class="action-just">'+esc(a.just)+'</div>':'')+gapTag;
+      card.innerHTML=h;
+      wrap.appendChild(card);
+    });
+  });
+}
+function filterActions(band,btn){
+  document.querySelectorAll('#action-cards .action-card').forEach(c=>{
+    c.style.display=(band==='all'||c.dataset.band===band)?'':'none';
+  });
+  document.querySelectorAll('#action-cards .section-label').forEach(l=>{
+    l.style.display='';
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INIT — each section isolated; errors shown on-screen not just in console
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function init(){
+  if(!GAP_DATA){ return; }  // loadData already showed the error page
+
+  // Expose for debugging: open F12 console and type GAP_DATA to inspect
+  window.GAP_DATA = GAP_DATA;
+
+  function run(name, fn, errorTargetId){
+    try { fn(); }
+    catch(e){
+      console.error('[Gap Dashboard] '+name+' failed:', e);
+      if(errorTargetId){
+        var el=document.getElementById(errorTargetId);
+        if(el) el.innerHTML='<div style="padding:20px;color:#ff6b6b;background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.25);border-radius:8px;font-size:12px;line-height:1.7">'
+          +'<strong>&#9888;&#65039; '+name+' error</strong><br>'
+          +esc(String(e))
+          +'<br><br><span style="color:var(--muted)">Open F12 &rarr; Console for full stack trace. '
+          +'Or type <code style="color:#34d399">GAP_DATA</code> in the console to inspect the loaded data.</span>'
+          +'</div>';
+      }
+    }
+  }
+
+  run('buildHeader',   buildHeader);
+  run('buildOverview', buildOverview);
+  run('buildPillars',  buildPillars,  'pillar-cards');
+  run('buildKPIs',     buildKPIs,     'kpi-score-grid');
+  run('buildActions',  buildActions,  'action-cards');
+})();
+</script>
+</body>
+</html>
